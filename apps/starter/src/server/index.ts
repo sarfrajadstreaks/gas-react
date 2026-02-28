@@ -1,8 +1,12 @@
 /**
  * Server entry point — all exported functions become GAS globals.
  *
- * After esbuild bundles this file, each `export function` is available
- * to call from the client via `executeFn('functionName', args)`.
+ * After esbuild + esbuild-gas-plugin bundles this file, each `export function`
+ * becomes a top-level GAS global, directly callable from the client via:
+ *   google.script.run.functionName(arg1, arg2)
+ *   executeFn('functionName', [arg1, arg2])   // React hook wrapper
+ *
+ * No proxy/dispatcher needed — this is NOT a GAS Library.
  */
 
 import {
@@ -68,36 +72,39 @@ function deleteItem(itemId: string, token: string) {
   return { success: true, message: 'Item deleted' };
 }
 
-// ─── Function registry ──────────────────────────────────────────────────────
+// ─── GAS entry point ────────────────────────────────────────────────────────
 
-const functions: Record<string, (...args: unknown[]) => unknown> = {
-  // Auth
-  login: (email: unknown) => auth.login(email as string),
-  verifyOTP: (email: unknown, otp: unknown) => auth.verifyOTP(email as string, otp as string),
-  validateSession: (token: unknown) => auth.validateToken(token as string),
+const engine = createAppEngine(appConfig);
 
-  // Access
-  getUserProfile: (token: unknown) => {
-    const payload = requireAuth(token as string);
-    const users = getDb().find<Record<string, unknown>>('users', 'email', payload.email);
-    if (!users.length) return { success: false, message: 'User not found' };
-    const user = users[0];
-    const permissions = access.getRolePermissions((user.role as string) ?? 'New');
-    return { success: true, email: user.email, name: user.name, role: user.role, permissions };
-  },
-
-  // Data change polling
-  getDataChangeTimestamps: (token: unknown) => dataChange.getTimestamps(token as string),
-
-  // App-specific
-  getItems: (token: unknown) => getItems(token as string),
-  createItem: (itemData: unknown, token: unknown) => createItem(itemData as Record<string, unknown>, token as string),
-  deleteItem: (itemId: unknown, token: unknown) => deleteItem(itemId as string, token as string),
-};
-
-// ─── GAS entry points ───────────────────────────────────────────────────────
-
-const engine = createAppEngine(appConfig, functions);
-
+/** Web app entry — serves the React SPA */
 export const doGet = engine.doGet;
-export const runLibraryFunction = engine.runLibraryFunction;
+
+// ─── Exported functions (each becomes a GAS global) ─────────────────────────
+// The client calls these directly: google.script.run.login(email)
+
+export function login(email: string) {
+  return auth.login(email);
+}
+
+export function verifyOTP(email: string, otp: string) {
+  return auth.verifyOTP(email, otp);
+}
+
+export function validateSession(token: string) {
+  return auth.validateToken(token);
+}
+
+export function getUserProfile(token: string) {
+  const payload = requireAuth(token);
+  const users = getDb().find<Record<string, unknown>>('users', 'email', payload.email);
+  if (!users.length) return { success: false, message: 'User not found' };
+  const user = users[0];
+  const permissions = access.getRolePermissions((user.role as string) ?? 'New');
+  return { success: true, email: user.email, name: user.name, role: user.role, permissions };
+}
+
+export function getDataChangeTimestamps(token: string) {
+  return dataChange.getTimestamps(token);
+}
+
+export { getItems, createItem, deleteItem };

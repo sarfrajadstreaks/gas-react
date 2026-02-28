@@ -1,7 +1,10 @@
 /**
  * executeFn — Bridge between React and GAS server.
  *
- * In production, calls google.script.run.runLibraryFunction().
+ * In production, calls google.script.run.<functionName>() directly.
+ * Since esbuild bundles server code into Code.js with top-level global
+ * functions, every exported function is directly callable via google.script.run.
+ *
  * In dev mode, calls a local mock server via HTTP.
  */
 
@@ -11,7 +14,6 @@ declare const google: {
     run: {
       withSuccessHandler(fn: (result: unknown) => void): typeof google.script.run;
       withFailureHandler(fn: (error: Error) => void): typeof google.script.run;
-      runLibraryFunction(funcName: string, args: unknown[]): void;
       [key: string]: unknown;
     };
   };
@@ -38,11 +40,18 @@ export function executeFn<T = unknown>(funcName: string, args: unknown[] = []): 
     });
   }
 
-  // Production — call GAS via google.script.run
+  // Production — call GAS function directly via google.script.run
   return new Promise<T>((resolve, reject) => {
-    google.script.run
+    const runner = google.script.run
       .withSuccessHandler((result: unknown) => resolve(result as T))
-      .withFailureHandler((error: Error) => reject(error))
-      .runLibraryFunction(funcName, args);
+      .withFailureHandler((error: Error) => reject(error));
+
+    // google.script.run exposes each GAS global function as a method
+    const fn = runner[funcName];
+    if (typeof fn !== 'function') {
+      reject(new Error(`Server function '${funcName}' not found`));
+      return;
+    }
+    (fn as (...a: unknown[]) => void).apply(runner, args);
   });
 }

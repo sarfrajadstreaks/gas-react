@@ -1,32 +1,28 @@
 /**
- * App Engine — The GAS entry points.
+ * App Engine — The GAS entry point.
  *
- * Creates `doGet` (serves the SPA) and `runLibraryFunction` (RPC bridge).
- * These become global functions after esbuild bundles the server code.
+ * Creates `doGet` which serves the React SPA as a single HTML page.
+ * Since esbuild bundles server code into Code.js with top-level global
+ * functions, every `export function` in your server/index.ts becomes
+ * directly callable via `google.script.run.functionName()` — no proxy needed.
  */
 
 import type { GASFrameworkConfig } from '../../types/config';
 
 export interface AppEngine {
-  /** GAS web app entry point — serves the HTML shell */
+  /** GAS web app entry point — serves the React SPA */
   doGet(e?: unknown): GoogleAppsScript.HTML.HtmlOutput;
-
-  /** RPC bridge — client calls this via google.script.run */
-  runLibraryFunction(funcName: string, args?: unknown[]): unknown;
 }
 
 /**
- * Create the main GAS entry points.
+ * Create the GAS web app entry point.
  *
- * @param config      - App configuration
- * @param functions   - Map of function names to implementations that should be
- *                      callable from the client via `executeFn(name, args)`.
- * @param htmlEntry   - The HtmlService template file path for the SPA shell.
- *                      Defaults to 'index' (i.e. index.html).
+ * @param config    - App configuration
+ * @param htmlEntry - The HtmlService template file path for the SPA shell.
+ *                    Defaults to 'index' (i.e. index.html).
  */
 export function createAppEngine(
   config: GASFrameworkConfig,
-  functions: Record<string, (...args: unknown[]) => unknown>,
   htmlEntry = 'index'
 ): AppEngine {
   return {
@@ -43,14 +39,6 @@ export function createAppEngine(
           `<h1>Error</h1><p>${error}</p>`
         ).addMetaTag('viewport', 'width=device-width, initial-scale=1');
       }
-    },
-
-    runLibraryFunction(funcName: string, args?: unknown[]) {
-      const fn = functions[funcName];
-      if (typeof fn !== 'function') {
-        throw new Error(`Function '${funcName}' does not exist`);
-      }
-      return fn(...(args || []));
     },
   };
 }

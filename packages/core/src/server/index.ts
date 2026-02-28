@@ -2,7 +2,7 @@
 //
 // Everything the app's server code needs from the framework.
 
-// App engine (doGet + RPC bridge)
+// App engine (doGet entry point)
 export { createAppEngine } from './app-engine';
 export type { AppEngine } from './app-engine';
 

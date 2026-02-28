@@ -148,16 +148,20 @@ export const APP_SCHEMA: AppSchema = {
 import { createRepository, createAppEngine, requireAuth } from '@gas-framework/core/server';
 
 const repo = createRepository(APP_SCHEMA);
+const engine = createAppEngine(appConfig);
 
-function getOrders(token: string) {
+// Every export becomes a GAS global → callable from client directly
+export const doGet = engine.doGet;
+
+export function getOrders(token: string) {
   requireAuth(token);
   return repo.getDb().findAll<Order>('orders');
 }
 
-// Register functions + create GAS entry points
-const engine = createAppEngine(appConfig, { getOrders, login, verifyOTP, ... });
-export const doGet = engine.doGet;
-export const runLibraryFunction = engine.runLibraryFunction;
+export function createOrder(data: OrderInput, token: string) {
+  requireAuth(token);
+  return repo.getDb().insert('orders', [data]);
+}
 ```
 
 ### 4. Build React pages
