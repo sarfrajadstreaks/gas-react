@@ -6,6 +6,10 @@
 export { createAppEngine } from './app-engine';
 export type { AppEngine } from './app-engine';
 
+// Library Proxy (for GAS Library deployment mode)
+export { createLibraryProxy } from './app-engine';
+export type { LibraryProxy } from './app-engine';
+
 // Repository (typed CRUD for Google Sheets)
 export { createRepository } from './repository';
 export type { Repository } from './repository';

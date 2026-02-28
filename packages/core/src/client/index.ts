@@ -13,7 +13,8 @@ export { useToast } from './hooks/useToast';
 export type { ToastType, ToastMessage } from './hooks/useToast';
 
 // Server bridge
-export { executeFn } from './lib/execute-fn';
+export { executeFn, configureExecution, getExecutionMode } from './lib/execute-fn';
+export type { ExecutionMode, ExecutionConfig } from './lib/execute-fn';
 
 // Components
 export {

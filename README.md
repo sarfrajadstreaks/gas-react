@@ -46,13 +46,13 @@ That's it. `clasp push` from the `dist/` folder and you have a deployed web app.
 | **Cache Manager** | GAS CacheService wrapper. Cache-on-read, invalidate-on-write. Config-driven per table. |
 | **Data Change Service** | Change timestamp tracking. Client polls to detect stale data and refresh. |
 | **Drive Service** | Upload/download/delete files from Google Drive. Image handling with base64 conversion. |
-| **App Engine** | `doGet()` and `runLibraryFunction()` — the two GAS entry points, configured once. |
+| **App Engine** | `doGet()` entry point. Optional `createLibraryProxy()` for GAS Library mode. |
 
 ### Client Side (`@gas-framework/core/client`)
 
 | Module | What it does |
 |---|---|
-| **`useExecuteFn`** | Hook that calls GAS server functions with loading/error state. Dev-mode HTTP fallback. |
+| **`useExecuteFn`** | Hook that calls GAS server functions with loading/error state. Supports direct and library modes. |
 | **`useAuth`** | Login state management. Token persistence. Session validation. |
 | **`useDataPolling`** | Auto-refresh when server data changes. |
 | **`useToast`** | Toast notification state management. |
@@ -78,7 +78,7 @@ gas-framework/
 │       │   │   ├── access/      ← Role-based permissions
 │       │   │   ├── drive/       ← Google Drive file operations
 │       │   │   ├── data-change/ ← Change tracking for polling
-│       │   │   └── app-engine/  ← doGet + RPC bridge
+│       │   │   └── app-engine/  ← doGet + optional library proxy
 │       │   ├── client/          ← Runs in browser (React)
 │       │   │   ├── hooks/       ← useExecuteFn, useAuth, useToast, useDataPolling
 │       │   │   ├── components/  ← Modal, DataTable, Toast, Loader, StatCard, etc.
@@ -194,6 +194,96 @@ export function Orders() {
 ```bash
 npm run build    # → dist/index.html + dist/Code.js
 cd dist && clasp push
+```
+
+## Deployment Modes
+
+The framework supports two deployment patterns. **Direct mode is the default** — use it unless you specifically need GAS Library mode.
+
+### Direct Mode (default) — npm-bundled
+
+Your server TypeScript is bundled by esbuild into `Code.js`. Each `export function` becomes a GAS global, directly callable from the client.
+
+```
+┌─ Client (React) ─────────────────────────┐
+│ google.script.run.getOrders(token)        │
+└───────────────────────────────────────────┘
+           │
+           ▼
+┌─ Code.js (bundled) ──────────────────────┐
+│ function getOrders(token) { ... }        │  ← esbuild global
+└───────────────────────────────────────────┘
+```
+
+**Server:** Export functions normally.
+```typescript
+// src/server/index.ts
+export function getOrders(token: string) { ... }
+```
+
+**Client:** No configuration needed (direct mode is the default).
+```typescript
+const { data } = useExecuteFn<Order[]>('getOrders', [token]);
+```
+
+### Library Mode — GAS Library deployment
+
+Use this when your app is deployed as a **GAS Library** that another script imports (like the hotel-booking-library pattern). In this model, `google.script.run` can only call functions in the **consumer** script, not in the library. So all calls are funneled through a single `runLibraryFunction` dispatcher.
+
+```
+┌─ Client (React) ─────────────────────────────────────────────┐
+│ google.script.run.runLibraryFunction('getOrders', [token])   │
+└──────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─ Consumer Script (Code.gs) ──────────────────────────────────┐
+│ function runLibraryFunction(funcName, args) {                │
+│   return MyLib.runLibraryFunction(funcName, args);           │
+│ }                                                            │
+└──────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─ Your Library ───────────────────────────────────────────────┐
+│ createLibraryProxy({ getOrders, createOrder, ... })          │
+│   → dispatches to the registered function                    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Server:** Register functions with `createLibraryProxy`.
+```typescript
+// src/server/index.ts
+import { createLibraryProxy, createAppEngine } from '@gas-framework/core/server';
+
+function getOrders(token: string) { ... }
+function createOrder(data: OrderInput, token: string) { ... }
+
+const proxy = createLibraryProxy({ getOrders, createOrder });
+const engine = createAppEngine(appConfig);
+
+export const doGet = engine.doGet;
+export const runLibraryFunction = proxy.runLibraryFunction;
+```
+
+**Client:** Switch to library mode once at app init.
+```typescript
+// src/client/main.tsx
+import { configureExecution } from '@gas-framework/core/client';
+
+configureExecution({ mode: 'library' });
+
+// Then use hooks normally — they'll route through runLibraryFunction
+const { data } = useExecuteFn<Order[]>('getOrders', [token]);
+```
+
+**Consumer script** (the GAS project that imports your library):
+```javascript
+// Code.gs
+function doGet(e) {
+  return MyLib.doGet(e);
+}
+function runLibraryFunction(funcName, args) {
+  return MyLib.runLibraryFunction(funcName, args);
+}
 ```
 
 ## Roadmap
