@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.clasp.json
+*.js.map
+.DS_Store
+.env
+.env.local

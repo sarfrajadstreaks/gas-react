@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@gas-framework/core/*": ["../../packages/core/src/*"],
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src"]
+}

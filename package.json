@@ -1,0 +1,17 @@
+{
+  "name": "gas-framework",
+  "private": true,
+  "version": "0.0.1",
+  "description": "React + TypeScript framework for building Google Apps Script web applications",
+  "scripts": {
+    "dev": "pnpm --filter @example/starter dev",
+    "build": "pnpm --filter @example/starter build",
+    "build:framework": "pnpm --filter @gas-framework/core build",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  }
+}
