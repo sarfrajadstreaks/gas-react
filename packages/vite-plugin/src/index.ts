@@ -22,6 +22,7 @@ export interface GASViteOptions {
   aliases?: Record<string, string>;
   plugins?: unknown[];
   appTitle?: string;
+  serverEntry?: string;
   vite?: Record<string, unknown>;
 }
 
@@ -36,6 +37,7 @@ export async function createGASViteConfig(
     aliases = {},
     plugins: extraPlugins = [],
     appTitle,
+    serverEntry,
     vite: overrides = {},
   } = options;
 
@@ -59,7 +61,7 @@ export async function createGASViteConfig(
 
   if (!local) {
     const { gasPlugin } = await import('./vite-plugin-gas');
-    plugins.push(gasPlugin({ appTitle }));
+    plugins.push(gasPlugin({ appTitle, serverEntry }));
   }
 
   plugins.push(...extraPlugins);

@@ -12,6 +12,7 @@ export default defineConfig([
     external: [
       'vite',
       '@vitejs/plugin-react',
+      'esbuild',
     ],
     onSuccess: 'cp src/index.d.ts dist/index.d.ts && echo "DTS dist/index.d.ts copied"',
   },

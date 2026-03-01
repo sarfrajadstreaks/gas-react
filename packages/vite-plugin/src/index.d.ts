@@ -3,6 +3,7 @@ export declare function isLocalDev(): boolean;
 export interface GASPluginOptions {
   pagePrefix?: string;
   appTitle?: string;
+  serverEntry?: string;
 }
 
 export declare function gasPlugin(options?: GASPluginOptions): {
@@ -18,6 +19,7 @@ export interface GASViteOptions {
   aliases?: Record<string, string>;
   plugins?: unknown[];
   appTitle?: string;
+  serverEntry?: string;
   vite?: Record<string, unknown>;
 }
 

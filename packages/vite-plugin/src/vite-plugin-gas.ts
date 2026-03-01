@@ -1,6 +1,9 @@
+import path from 'node:path';
+
 interface GASPluginOptions {
   pagePrefix?: string;
   appTitle?: string;
+  serverEntry?: string;
 }
 
 interface VitePlugin {
@@ -8,7 +11,7 @@ interface VitePlugin {
   enforce?: 'pre' | 'post';
   renderChunk?: (code: string, chunk: ChunkInfo) => string | null;
   transformIndexHtml?: (html: string) => string;
-  generateBundle?: (options: unknown, bundle: Record<string, BundleItem>) => void;
+  generateBundle?: (options: unknown, bundle: Record<string, BundleItem>) => void | Promise<void>;
 }
 
 interface ChunkInfo {
@@ -28,7 +31,7 @@ interface BundleItem {
 }
 
 export function gasPlugin(options: GASPluginOptions = {}): VitePlugin {
-  const { pagePrefix = 'page_', appTitle = 'GAS App' } = options;
+  const { pagePrefix = 'page_', appTitle = 'GAS App', serverEntry } = options;
   const lazyPageNames = new Set<string>();
   const fileToGasName = new Map<string, string>();
 
@@ -126,7 +129,7 @@ export function gasPlugin(options: GASPluginOptions = {}): VitePlugin {
       return html;
     },
 
-    generateBundle(_options: unknown, bundle: Record<string, BundleItem>): void {
+    async generateBundle(_options: unknown, bundle: Record<string, BundleItem>): Promise<void> {
       let entryFileName: string | null = null;
       let entryCode: string | null = null;
 
@@ -235,7 +238,31 @@ export function gasPlugin(options: GASPluginOptions = {}): VitePlugin {
           html = html.replace('__GAS_DEPS_MAP__', depsJson);
           htmlItem.source = html;
 
-          const codeJs = `function doGet() {
+          let codeJs = '';
+
+          if (serverEntry) {
+            try {
+              const esbuild = await import('esbuild');
+              const serverPath = path.resolve(process.cwd(), serverEntry);
+              const result = await esbuild.build({
+                entryPoints: [serverPath],
+                bundle: true,
+                format: 'esm',
+                platform: 'neutral',
+                target: 'es2020',
+                write: false,
+                external: [],
+              });
+              let serverCode = result.outputFiles[0].text;
+              serverCode = serverCode.replace(/^export\s*\{[^}]*\};\s*$/gm, '');
+              serverCode = serverCode.replace(/^export\s+/gm, '');
+              codeJs += serverCode + '\n';
+            } catch (err) {
+              console.error('Failed to bundle server entry:', err);
+            }
+          }
+
+          codeJs += `function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('${appTitle.replace(/'/g, "\\'")}')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
