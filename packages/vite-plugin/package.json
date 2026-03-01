@@ -1,0 +1,52 @@
+{
+  "name": "@sarfrajadstreaks/gas-vite-plugin",
+  "version": "0.1.0",
+  "description": "Vite plugin that deploys React apps to Google Apps Script with automatic code splitting",
+  "type": "module",
+  "license": "MIT",
+  "author": "Sarfraj Akhtar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sarfrajadstreaks/gas-react",
+    "directory": "packages/vite-plugin"
+  },
+  "keywords": [
+    "vite",
+    "vite-plugin",
+    "google-apps-script",
+    "gas",
+    "react",
+    "code-splitting",
+    "clasp"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      ".": ["dist/index.d.ts"]
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0",
+    "@vitejs/plugin-react": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@vitejs/plugin-react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0"
+  }
+}

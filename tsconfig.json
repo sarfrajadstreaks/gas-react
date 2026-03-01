@@ -9,14 +9,12 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
-    "declarationMap": true,
     "sourceMap": true,
-    "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "paths": {
-      "@gas-framework/core/*": ["./packages/core/src/*"],
-      "@gas-framework/core": ["./packages/core/src"]
-    }
+    "lib": ["ES2020", "DOM", "DOM.Iterable"]
   },
-  "exclude": ["node_modules", "dist"]
+  "references": [
+    { "path": "packages/vite-plugin" },
+    { "path": "packages/core" }
+  ],
+  "files": []
 }

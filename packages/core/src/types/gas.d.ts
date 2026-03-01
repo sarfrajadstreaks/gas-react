@@ -1,13 +1,3 @@
-/**
- * GAS Type Stubs
- *
- * These declare the global objects available in the Google Apps Script V8 runtime.
- * They allow TypeScript to compile server code without errors.
- * At runtime, GAS provides the real implementations.
- */
-
-/* eslint-disable @typescript-eslint/no-empty-interface */
-
 declare const SpreadsheetApp: {
   getActiveSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsheet;
 };
@@ -22,28 +12,14 @@ declare const PropertiesService: {
 };
 
 declare const MailApp: {
-  sendEmail(
-    recipient: string,
-    subject: string,
-    body: string,
-    options?: { htmlBody?: string }
-  ): void;
-};
-
-declare const DriveApp: {
-  getFileById(id: string): GoogleAppsScript.Drive.File;
-  getFolderById(id: string): GoogleAppsScript.Drive.Folder;
-  getRootFolder(): GoogleAppsScript.Drive.Folder;
-  createFolder(name: string): GoogleAppsScript.Drive.Folder;
+  sendEmail(recipient: string, subject: string, body: string, options?: { htmlBody?: string }): void;
 };
 
 declare const Utilities: {
   getUuid(): string;
   base64Encode(data: string | number[]): string;
   base64Decode(data: string): number[];
-  computeHmacSha256Signature(value: string, key: string): number[];
   formatDate(date: Date, timeZone: string, format: string): string;
-  newBlob(data: number[]): GoogleAppsScript.Base.Blob;
 };
 
 declare const Session: {
@@ -54,16 +30,13 @@ declare const Session: {
 declare const HtmlService: {
   createTemplateFromFile(filename: string): GoogleAppsScript.HTML.Template;
   createHtmlOutput(html: string): GoogleAppsScript.HTML.HtmlOutput;
-  XFrameOptionsMode: {
-    ALLOWALL: unknown;
-  };
+  createHtmlOutputFromFile(filename: string): GoogleAppsScript.HTML.HtmlOutput;
+  XFrameOptionsMode: { ALLOWALL: unknown };
 };
 
 declare const Logger: {
   log(msg: string): void;
 };
-
-// ─── Namespace stubs ────────────────────────────────────────────────────────
 
 declare namespace GoogleAppsScript {
   namespace Spreadsheet {
@@ -96,31 +69,6 @@ declare namespace GoogleAppsScript {
     interface Properties {
       getProperty(key: string): string | null;
       setProperty(key: string, value: string): void;
-    }
-  }
-  namespace Drive {
-    interface File {
-      getBlob(): Base.Blob;
-      getId(): string;
-      getName(): string;
-    }
-    interface Folder {
-      getId(): string;
-      createFile(blob: Base.Blob): File;
-      getFilesByName(name: string): FileIterator;
-    }
-    interface FileIterator {
-      hasNext(): boolean;
-      next(): File;
-    }
-  }
-  namespace Base {
-    interface Blob {
-      getBytes(): number[];
-      getContentType(): string;
-      getDataAsString(): string;
-      setName(name: string): Blob;
-      setContentType(type: string): Blob;
     }
   }
   namespace HTML {

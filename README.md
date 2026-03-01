@@ -1,346 +1,220 @@
-# GAS Framework
+# @sarfrajadstreaks/gas-vite-plugin
 
-**Build full-stack web apps on Google Apps Script with React, TypeScript, and zero infrastructure.**
+**Deploy React apps to Google Apps Script — with code splitting.**
 
-> Write modern React + TypeScript. Build. Deploy to GAS. Get auth, data layer, and UI components out of the box.
+> Write a standard React + Vite app. Run one command. Get a working GAS web app with lazy-loaded pages.
 
 ---
 
-## The Problem
+## Why?
 
-Google Apps Script is the only free, zero-infrastructure way to deploy web apps backed by Google Sheets. But building anything serious on it means:
+Google Apps Script only serves HTML files via `HtmlService`. External `<script>` tags are blocked by the CAJA sanitizer. That means:
 
-- Writing vanilla JS with no type safety
-- Managing global scope spaghetti
-- Copy-pasting the same auth, CRUD, and UI boilerplate across projects
-- No component system, no bundling, no dev server
-- Deploying raw `.gs` and `.html` files via `clasp push`
+- No ES modules, no `import()`, no `<script src="...">`
+- You normally have to inline **everything** into a single HTML file
+- Code splitting? Lazy loading? Forget it.
 
-Every GAS web app reinvents the same wheel: authentication, spreadsheet CRUD, toast notifications, modal dialogs, data tables, role-based access.
+This plugin solves all of that. You write a normal React app with `React.lazy()` and Vite's natural code splitting — the plugin transforms the build output into something GAS can actually serve.
 
-## The Vision
-
-**GAS Framework** gives you a professional development experience for GAS web apps:
+## How It Works
 
 ```
-React + TypeScript → Build → GAS-ready output → clasp push → Live web app
+React App (Vite) → Build → GAS-compatible output → clasp push → Live web app
 ```
 
-You write a modern React SPA with full type safety. The build pipeline produces two artifacts:
+The plugin runs at build time and:
 
-1. **`index.html`** — Your entire React app inlined into a single HTML file (Vite + vite-plugin-singlefile)
-2. **`Code.js`** — Your server-side TypeScript bundled into GAS-compatible global functions (esbuild + esbuild-gas-plugin)
+1. **Stores all JS server-side** as `.gs` string variables (completely bypasses CAJA)
+2. **Rewrites `import()`** calls to fetch chunks via `google.script.run.getPage()`
+3. **Builds a dependency graph** so shared chunks load before the pages that need them
+4. **Generates `Code.js`** with `doGet()`, `getEntryCode()`, and `getPage()` functions
+5. **Generates `appsscript.json`** with the correct webapp configuration
 
-That's it. `clasp push` from the `dist/` folder and you have a deployed web app.
+At runtime, the entry JS is loaded via `google.script.run.getEntryCode()` and injected into a `<script>` tag. When you navigate to a lazy page, the chunk loader fetches its code (and any shared dependencies) the same way.
 
-## What You Get For Free
-
-### Server Side (`@gas-framework/core/server`)
-
-| Module | What it does |
-|---|---|
-| **Repository** | Typed CRUD for Google Sheets — `findAll<T>()`, `find()`, `insert()`, `update()`, `delete()` |
-| **Schema Engine** | Define table schemas with types, required fields, defaults, enums. Auto-validates on every write. |
-| **Auth Service** | Email-based OTP login. Token generation/validation. Branded OTP emails from your config. |
-| **Access Control** | Role-based permissions. Define permission keys, assign to roles, check access. |
-| **Cache Manager** | GAS CacheService wrapper. Cache-on-read, invalidate-on-write. Config-driven per table. |
-| **Data Change Service** | Change timestamp tracking. Client polls to detect stale data and refresh. |
-| **Drive Service** | Upload/download/delete files from Google Drive. Image handling with base64 conversion. |
-| **App Engine** | `doGet()` entry point. Optional `createLibraryProxy()` for GAS Library mode. |
-
-### Client Side (`@gas-framework/core/client`)
-
-| Module | What it does |
-|---|---|
-| **`useExecuteFn`** | Hook that calls GAS server functions with loading/error state. Supports direct and library modes. |
-| **`useAuth`** | Login state management. Token persistence. Session validation. |
-| **`useDataPolling`** | Auto-refresh when server data changes. |
-| **`useToast`** | Toast notification state management. |
-| **`GASAppProvider`** | React context provider — injects config + auth into your component tree. |
-| **`Modal`** | General-purpose modal dialog. |
-| **`ConfirmDialog`** | Confirm/cancel dialog with danger variant. |
-| **`DataTable`** | Generic data table with formatting, row clicks, empty states. |
-| **`ToastContainer`** | Animated toast notification display. |
-| **`StatCard`** | Dashboard metric card with trends. |
-| **`Loader`** | Loading spinner (inline or full-page). |
-
-## Project Structure
+### Build Output
 
 ```
-gas-framework/
-├── packages/
-│   └── core/                    ← The npm package: @gas-framework/core
-│       ├── src/
-│       │   ├── server/          ← Runs in GAS V8 runtime
-│       │   │   ├── repository/  ← Sheet CRUD + schema validation
-│       │   │   ├── auth/        ← OTP login + token management
-│       │   │   ├── cache/       ← CacheService wrapper
-│       │   │   ├── access/      ← Role-based permissions
-│       │   │   ├── drive/       ← Google Drive file operations
-│       │   │   ├── data-change/ ← Change tracking for polling
-│       │   │   └── app-engine/  ← doGet + optional library proxy
-│       │   ├── client/          ← Runs in browser (React)
-│       │   │   ├── hooks/       ← useExecuteFn, useAuth, useToast, useDataPolling
-│       │   │   ├── components/  ← Modal, DataTable, Toast, Loader, StatCard, etc.
-│       │   │   ├── providers/   ← GASAppProvider (config + auth context)
-│       │   │   └── lib/         ← executeFn bridge (GAS ↔ dev server)
-│       │   ├── types/           ← Shared types (config, GAS stubs)
-│       │   └── build/           ← Build utilities (Vite + esbuild configs)
-│       └── package.json
-│
-└── apps/
-    └── starter/                 ← Example app using the framework
-        ├── src/
-        │   ├── app.config.ts    ← App name, pages, permissions, cache, auth settings
-        │   ├── server/
-        │   │   ├── schema.ts    ← Your table definitions
-        │   │   └── index.ts     ← Your server functions (become GAS globals)
-        │   └── client/
-        │       ├── App.tsx      ← Your React app
-        │       └── pages/       ← Your page components
-        ├── dist/                ← Build output → clasp push from here
-        │   ├── index.html       ← Entire React app (JS/CSS inlined)
-        │   ├── Code.js          ← Bundled server code (global functions)
-        │   └── appsscript.json
-        └── appsscript.json
+dist/
+├── index.html           ← Served by doGet() — contains the chunk loader
+├── __gas_entry__.js     ← Entry bundle stored as a .gs string variable
+├── __gas_chunks__.js    ← All lazy + shared chunks as .gs string variables
+├── Code.js              ← Server functions: doGet(), getEntryCode(), getPage()
+└── appsscript.json      ← GAS project manifest
 ```
 
 ## Quick Start
 
-### 1. Define your config
+### 1. Install
 
-```typescript
-// src/app.config.ts
-export const appConfig: GASFrameworkConfig = {
-  name: 'My App',
-  auth: { tokenKey: 'myAppToken', tokenExpiryHours: 24, otpExpiryMinutes: 10 },
-  pages: [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', permission: 'dashboard', default: true },
-    { id: 'orders',    label: 'Orders',    icon: '🛒', permission: 'orders' },
-  ],
-  permissions: ['dashboard', 'orders'],
-  dataChangeKeys: ['ORDERS'],
-};
+```bash
+npm install @sarfrajadstreaks/gas-vite-plugin
+npm install -D vite @vitejs/plugin-react
 ```
 
-### 2. Define your schema
+### 2. Configure Vite
 
-```typescript
-// src/server/schema.ts
-export const APP_SCHEMA: AppSchema = {
-  ORDERS: {
-    tableName: 'orders',
-    fields: {
-      id: { type: FIELD_TYPES.STRING, required: true },
-      customer: { type: FIELD_TYPES.STRING, required: true },
-      total: { type: FIELD_TYPES.NUMBER, required: true },
-      status: { type: FIELD_TYPES.ENUM, required: true, enum: ['Pending', 'Completed', 'Cancelled'] },
-      createdAt: { type: FIELD_TYPES.DATE, required: true },
-    },
-  },
-};
+```ts
+// vite.config.ts
+import { createGASViteConfig } from '@sarfrajadstreaks/gas-vite-plugin';
+
+export default createGASViteConfig({
+  clientRoot: 'src',
+  appTitle: 'My App',
+});
 ```
 
-### 3. Write server functions
+That's it. `createGASViteConfig()` sets up React, the GAS plugin, aliases, and dev mode automatically.
 
-```typescript
-// src/server/index.ts
-import { createRepository, createAppEngine, requireAuth } from '@gas-framework/core/server';
+### 3. Write Your App
 
-const repo = createRepository(APP_SCHEMA);
-const engine = createAppEngine(appConfig);
-
-// Every export becomes a GAS global → callable from client directly
-export const doGet = engine.doGet;
-
-export function getOrders(token: string) {
-  requireAuth(token);
-  return repo.getDb().findAll<Order>('orders');
-}
-
-export function createOrder(data: OrderInput, token: string) {
-  requireAuth(token);
-  return repo.getDb().insert('orders', [data]);
-}
-```
-
-### 4. Build React pages
+Use `React.lazy()` for page-level code splitting — Vite will split them into separate chunks, and the plugin will handle the rest:
 
 ```tsx
-// src/client/pages/Orders.tsx
-import { useExecuteFn, DataTable, useAppAuth } from '@gas-framework/core/client';
+// src/App.tsx
+import { useState, Suspense, lazy } from 'react';
 
-export function Orders() {
-  const { token } = useAppAuth();
-  const { data, loading } = useExecuteFn<Order[]>('getOrders', [token]);
+const Home = lazy(() => import('./pages/Home'));
+const Settings = lazy(() => import('./pages/Settings'));
 
-  if (loading) return <Loader />;
+const pages = { Home, Settings };
+
+export default function App() {
+  const [page, setPage] = useState('Home');
+  const Page = pages[page];
 
   return (
-    <DataTable
-      data={data ?? []}
-      columns={[
-        { key: 'customer', label: 'Customer' },
-        { key: 'total', label: 'Total', format: 'currency' },
-        { key: 'status', label: 'Status' },
-      ]}
-    />
+    <Suspense fallback={<div>Loading...</div>}>
+      <Page />
+    </Suspense>
   );
 }
+```
+
+```tsx
+// src/pages/Home.tsx
+export default function Home() {
+  return <h1>Home Page</h1>;
+}
+```
+
+### 4. Set Up Clasp
+
+```bash
+npm install -g @google/clasp
+clasp login
+clasp create --type webapp --rootDir dist
 ```
 
 ### 5. Build & Deploy
 
 ```bash
-npm run build    # → dist/index.html + dist/Code.js
+npx vite build
 cd dist && clasp push
 ```
 
-## Deployment Modes
+Open the GAS web app URL and your React app is live.
 
-The framework supports two deployment patterns. **Direct mode is the default** — use it unless you specifically need GAS Library mode.
+## Configuration
 
-### Direct Mode (default) — npm-bundled
+### `createGASViteConfig(options?)`
 
-Your server TypeScript is bundled by esbuild into `Code.js`. Each `export function` becomes a GAS global, directly callable from the client.
+Returns a complete Vite config. All options are optional:
 
-```
-┌─ Client (React) ─────────────────────────┐
-│ google.script.run.getOrders(token)        │
-└───────────────────────────────────────────┘
-           │
-           ▼
-┌─ Code.js (bundled) ──────────────────────┐
-│ function getOrders(token) { ... }        │  ← esbuild global
-└───────────────────────────────────────────┘
-```
+| Option | Default | Description |
+|---|---|---|
+| `clientRoot` | `'src/client'` | Path to client source directory |
+| `outDir` | `'dist'` | Build output directory |
+| `appTitle` | `'GAS App'` | Title shown in the browser tab |
+| `devServerPort` | `3001` | Port for local dev API server |
+| `devPort` | `5173` | Vite dev server port |
+| `aliases` | `{}` | Additional path aliases (`@` → `src/` is automatic) |
+| `plugins` | `[]` | Additional Vite plugins |
+| `vite` | `{}` | Override/extend any Vite config option |
 
-**Server:** Export functions normally.
-```typescript
-// src/server/index.ts
-export function getOrders(token: string) { ... }
-```
+### `gasPlugin(options?)`
 
-**Client:** No configuration needed (direct mode is the default).
-```typescript
-const { data } = useExecuteFn<Order[]>('getOrders', [token]);
-```
+Use this if you're building your own Vite config instead of using `createGASViteConfig()`:
 
-### Library Mode — GAS Library deployment
+```ts
+import { gasPlugin } from '@sarfrajadstreaks/gas-vite-plugin';
+import react from '@vitejs/plugin-react';
 
-Use this when your app is deployed as a **GAS Library** that another script imports (like the hotel-booking-library pattern). In this model, `google.script.run` can only call functions in the **consumer** script, not in the library. So all calls are funneled through a single `runLibraryFunction` dispatcher.
-
-```
-┌─ Client (React) ─────────────────────────────────────────────┐
-│ google.script.run.runLibraryFunction('getOrders', [token])   │
-└──────────────────────────────────────────────────────────────┘
-           │
-           ▼
-┌─ Consumer Script (Code.gs) ──────────────────────────────────┐
-│ function runLibraryFunction(funcName, args) {                │
-│   return MyLib.runLibraryFunction(funcName, args);           │
-│ }                                                            │
-└──────────────────────────────────────────────────────────────┘
-           │
-           ▼
-┌─ Your Library ───────────────────────────────────────────────┐
-│ createLibraryProxy({ getOrders, createOrder, ... })          │
-│   → dispatches to the registered function                    │
-└──────────────────────────────────────────────────────────────┘
+export default {
+  plugins: [react(), gasPlugin({ appTitle: 'My App' })],
+};
 ```
 
-**Server:** Register functions with `createLibraryProxy`.
-```typescript
-// src/server/index.ts
-import { createLibraryProxy, createAppEngine } from '@gas-framework/core/server';
+| Option | Default | Description |
+|---|---|---|
+| `pagePrefix` | `'page_'` | Prefix for page chunk names |
+| `appTitle` | `'GAS App'` | Web app title |
 
-function getOrders(token: string) { ... }
-function createOrder(data: OrderInput, token: string) { ... }
+### `isLocalDev()`
 
-const proxy = createLibraryProxy({ getOrders, createOrder });
-const engine = createAppEngine(appConfig);
+Returns `true` when `GAS_LOCAL=true` is set in environment. Use to branch behavior between local development and GAS deployment:
 
-export const doGet = engine.doGet;
-export const runLibraryFunction = proxy.runLibraryFunction;
-```
-
-**Client:** Switch to library mode once at app init.
-```typescript
-// src/client/main.tsx
-import { configureExecution } from '@gas-framework/core/client';
-
-configureExecution({ mode: 'library' });
-
-// Then use hooks normally — they'll route through runLibraryFunction
-const { data } = useExecuteFn<Order[]>('getOrders', [token]);
-```
-
-**Consumer script** (the GAS project that imports your library):
-```javascript
-// Code.gs
-function doGet(e) {
-  return MyLib.doGet(e);
-}
-function runLibraryFunction(funcName, args) {
-  return MyLib.runLibraryFunction(funcName, args);
+```ts
+if (isLocalDev()) {
+  // Local dev: use mock data or local API
+} else {
+  // Production: use google.script.run
 }
 ```
 
-## Roadmap
+## How Code Splitting Works
 
-### Phase 1 — Foundation (current)
-- [x] Project scaffold (monorepo, TypeScript, build pipeline)
-- [x] Server: Repository + Schema Engine
-- [x] Server: Auth Service (OTP + tokens)
-- [x] Server: Cache Manager, Access Control, Data Change Service, Drive Service
-- [x] Client: `useExecuteFn`, `useAuth`, `useToast`, `useDataPolling` hooks
-- [x] Client: Modal, ConfirmDialog, DataTable, Toast, Loader, StatCard components
-- [x] Client: GASAppProvider (config + auth context)
-- [x] Starter app demonstrating all features
+Vite naturally splits your app into chunks:
 
-### Phase 2 — Dev Experience
-- [ ] Local dev server with GAS function mocking
-- [ ] Hot reload with Vite dev server
-- [ ] Mock data layer (in-memory Sheets simulator)
-- [ ] CLI tool: `npx create-gas-app my-app`
+- **Entry chunk** — React, your app shell, shared dependencies
+- **Page chunks** — One per `React.lazy(() => import('./pages/X'))` call
+- **Shared lib chunks** — Common dependencies used by multiple pages (e.g., MUI components)
 
-### Phase 3 — Code Splitting & Performance
-- [ ] Lazy page loading (React.lazy + Suspense)
-- [ ] Route-based code splitting with chunk inlining
-- [ ] Initial bundle size optimization
-- [ ] Preload strategies for anticipated navigations
-- [ ] Server-side HTML template splitting (load page HTML on demand)
+The plugin transforms these into GAS-compatible form:
 
-### Phase 4 — Advanced Features
-- [ ] Form builder component (config-driven forms)
-- [ ] File upload component with Drive integration
-- [ ] Calendar component
-- [ ] Chart/analytics components
-- [ ] Real-time collaboration via polling optimization
-- [ ] Multi-language (i18n) support
+| Vite Output | Plugin Transform | GAS Runtime |
+|---|---|---|
+| `assets/index-abc.js` (entry) | `__GAS_ENTRY_CODE__` string variable | Loaded via `getEntryCode()` |
+| `assets/Home-xyz.js` (page) | `__GAS_CHUNK_page_Home__` string variable | Loaded via `getPage('page_Home')` |
+| `assets/Stack-def.js` (shared lib) | `__GAS_CHUNK_lib_Stack__` string variable | Auto-loaded as dependency |
 
-### Phase 5 — Ecosystem
-- [ ] Publish `@gas-framework/core` to npm
-- [ ] Documentation site
-- [ ] Template gallery (restaurant, school, clinic, etc.)
-- [ ] VS Code extension for GAS Framework projects
-- [ ] GitHub template repository
+Each chunk type gets its own **isolated namespace** to prevent variable collisions:
 
-## Why GAS?
+- Entry exports → `window.__gasEntry__`
+- Shared lib exports → `window.__gasLib_<name>__`
+- Page exports → `window.__gasChunkExports` (per-chunk, cleaned up after load)
 
-Google Apps Script remains unique: **free hosting, free database (Sheets), built-in auth (Google accounts), zero DevOps.** For internal tools, small business apps, and MVPs, nothing else comes close to the price-performance ratio. This framework makes building on it a first-class developer experience.
+The plugin automatically builds a dependency graph. When you navigate to `Home`, the loader first loads `lib_Stack` (if not cached), then loads `page_Home`. All subsequent navigations to pages sharing the same libs skip reloading them.
 
-## Tech Stack
+## Local Development
 
-- **React 19** — UI framework
-- **TypeScript** — Type safety across server and client
-- **Vite** — Client dev server and bundler
-- **vite-plugin-singlefile** — Inlines all JS/CSS into single HTML (GAS requirement)
-- **esbuild** — Server bundler (TS → GAS-compatible JS)
-- **esbuild-gas-plugin** — Converts ES module exports to GAS global functions
-- **pnpm workspaces** — Monorepo management
-- **tsup** — Framework package bundler
-- **clasp** — GAS deployment CLI
+Set `GAS_LOCAL=true` to run your app with Vite's dev server instead of deploying to GAS:
+
+```bash
+GAS_LOCAL=true npx vite
+```
+
+In local mode, `createGASViteConfig()`:
+- Skips the GAS plugin entirely
+- Injects `window.__GAS_DEV_MODE__ = true`
+- Injects `window.__GAS_DEV_SERVER__` pointing to your local API server
+- Enables Vite HMR and hot reload
+
+You can use these globals in your app to switch between `google.script.run` calls (production) and `fetch()` calls (local dev).
+
+## Requirements
+
+- **Node.js** ≥ 18
+- **Vite** ≥ 5
+- **React** 18 or 19 (with `React.lazy()` for code splitting)
+- **clasp** CLI for deployment (`npm install -g @google/clasp`)
+
+## Limitations
+
+- **GAS execution time limits** still apply (6 min/execution, 30 sec for web app requests)
+- **Chunk loading** adds a round-trip per chunk on first navigation (chunks are cached after first load)
+- **No SSR** — this is a client-side React app served via `HtmlService`
+- **File size** — GAS has a 50MB total project size limit. Large apps with many dependencies should be fine, but keep an eye on it.
 
 ## License
 

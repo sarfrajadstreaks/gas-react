@@ -1,49 +1,47 @@
 {
-  "name": "@gas-framework/core",
-  "version": "0.0.1",
-  "description": "Core framework for building Google Apps Script web apps with React + TypeScript",
+  "name": "@sarfrajadstreaks/gas-core",
+  "version": "0.1.0",
+  "description": "Client-server bridge and server utilities for Google Apps Script React apps",
   "type": "module",
+  "license": "MIT",
+  "author": "Sarfraj Akhtar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sarfrajadstreaks/gas-react",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "google-apps-script",
+    "gas",
+    "react",
+    "server-bridge",
+    "datastore",
+    "cache"
+  ],
   "exports": {
-    "./server": {
-      "types": "./dist/server/index.d.ts",
-      "import": "./dist/server/index.js"
-    },
     "./client": {
       "types": "./dist/client/index.d.ts",
       "import": "./dist/client/index.js"
     },
-    "./config": {
-      "types": "./dist/types/config.d.ts",
-      "import": "./dist/types/config.js"
-    },
-    "./build": {
-      "types": "./dist/build/index.d.ts",
-      "import": "./dist/build/index.js"
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
     }
   },
   "typesVersions": {
     "*": {
-      "server": ["dist/server/index.d.ts"],
       "client": ["dist/client/index.d.ts"],
-      "config": ["dist/types/config.d.ts"],
-      "build": ["dist/build/index.d.ts"]
+      "server": ["dist/server/index.d.ts"]
     }
   },
+  "files": ["dist", "README.md"],
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
-  },
-  "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "dev": "tsup --watch"
   },
   "devDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.0",
-    "tsup": "^8.0.0"
+    "@types/node": "^25.3.3",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0"
   }
 }

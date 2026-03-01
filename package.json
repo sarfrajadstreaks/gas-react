@@ -1,17 +1,25 @@
 {
-  "name": "gas-framework",
+  "name": "gas-react",
+  "version": "0.0.0",
   "private": true,
-  "version": "0.0.1",
-  "description": "React + TypeScript framework for building Google Apps Script web applications",
+  "description": "Monorepo for Google Apps Script + React + TypeScript tooling",
+  "license": "MIT",
+  "author": "Sarfraj Akhtar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sarfrajadstreaks/gas-react"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "pnpm --filter @example/starter dev",
-    "build": "pnpm --filter @example/starter build",
-    "build:framework": "pnpm --filter @gas-framework/core build",
-    "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
   },
   "engines": {
-    "node": ">=18",
-    "pnpm": ">=8"
+    "node": ">=18"
   }
 }

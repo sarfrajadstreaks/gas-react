@@ -1,6 +1,9 @@
-import type { CacheConfig } from '../../types/config';
+interface CacheEntry {
+  key: string;
+  duration: number;
+}
 
-// ─── Cache Manager ──────────────────────────────────────────────────────────
+type CacheConfig = Record<string, CacheEntry>;
 
 let _cacheConfig: CacheConfig = {};
 let _enabled = false;
@@ -40,7 +43,7 @@ export function removeFromCache(cacheKey: string, suffix = ''): void {
   try {
     CacheService.getScriptCache().remove(cacheKey + suffix);
   } catch {
-    // Cache removal failed — non-fatal
+    // non-fatal
   }
 }
 
@@ -55,10 +58,6 @@ export function clearAllCache(): { success: boolean; message: string } {
   }
 }
 
-/**
- * Wrap a fetch function with cache-on-read.
- * If cached data exists, return it. Otherwise, call fetchFn, cache the result, and return it.
- */
 export function withCache<T>(opts: {
   cacheKey: string;
   fetchFunction: () => T;
