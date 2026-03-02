@@ -10,8 +10,8 @@
 
 | Package | Description |
 |---|---|
-| [`@sarfrajadstreaks/gas-vite-plugin`](./packages/vite-plugin) | Vite plugin — transforms React builds for GAS deployment with code splitting |
-| [`@sarfrajadstreaks/gas-core`](./packages/core) | Client-server bridge (`executeFn`) and server utilities (`DataStore`, `Cache`) |
+| [`gas-vite-plugin`](./packages/vite-plugin) | Vite plugin — transforms React builds for GAS deployment with code splitting |
+| [`@sarfrajakhtar/gas-core`](./packages/core) | Client-server bridge (`executeFn`) and server utilities (`DataStore`, `Cache`) |
 
 ## How It Works
 
@@ -29,13 +29,13 @@ React App (Vite)
 ## Quick Start
 
 ```bash
-npm install @sarfrajadstreaks/gas-vite-plugin @sarfrajadstreaks/gas-core
+npm install gas-vite-plugin @sarfrajakhtar/gas-core
 ```
 
 ### vite.config.ts
 
 ```ts
-import { createGASViteConfig } from '@sarfrajadstreaks/gas-vite-plugin';
+import { createGASViteConfig } from 'gas-vite-plugin';
 
 export default createGASViteConfig({
   clientRoot: 'src',
@@ -47,7 +47,7 @@ export default createGASViteConfig({
 ### Server (`src/server/index.ts`)
 
 ```ts
-import { DataStore } from '@sarfrajadstreaks/gas-core/server';
+import { DataStore } from '@sarfrajakhtar/gas-core/server';
 
 export function getItems() {
   return DataStore.getAll('items');
@@ -57,7 +57,7 @@ export function getItems() {
 ### Service (`src/services/item-service.ts`)
 
 ```ts
-import { executeFn } from '@sarfrajadstreaks/gas-core/client';
+import { executeFn } from '@sarfrajakhtar/gas-core/client';
 
 export const getItems = () => executeFn<Item[]>('getItems');
 ```
@@ -84,7 +84,7 @@ cd dist && clasp push
 ## Development
 
 ```bash
-git clone https://github.com/sarfrajadstreaks/gas-react.git
+git clone https://github.com/sarfrajakhtar/gas-react.git
 cd gas-react
 npm install
 npm run build
@@ -94,8 +94,8 @@ npm run build
 
 ```
 packages/
-  vite-plugin/   → @sarfrajadstreaks/gas-vite-plugin
-  core/          → @sarfrajadstreaks/gas-core
+  vite-plugin/   → gas-vite-plugin
+  core/          → @sarfrajakhtar/gas-core
 ```
 
 ## License

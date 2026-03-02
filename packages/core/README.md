@@ -1,4 +1,4 @@
-# @sarfrajadstreaks/gas-core
+# @sarfrajakhtar/gas-core
 
 **Client-server bridge and server utilities for Google Apps Script React apps.**
 
@@ -9,15 +9,15 @@
 ## Install
 
 ```bash
-npm install @sarfrajadstreaks/gas-core
+npm install @sarfrajakhtar/gas-core
 ```
 
 ## Two Entry Points
 
 | Import | Runs In | Purpose |
 |---|---|---|
-| `@sarfrajadstreaks/gas-core/client` | Browser (React) | Call server functions via `google.script.run` |
-| `@sarfrajadstreaks/gas-core/server` | GAS runtime | Sheet CRUD, caching, app initialization |
+| `@sarfrajakhtar/gas-core/client` | Browser (React) | Call server functions via `google.script.run` |
+| `@sarfrajakhtar/gas-core/server` | GAS runtime | Sheet CRUD, caching, app initialization |
 
 ---
 
@@ -26,7 +26,7 @@ npm install @sarfrajadstreaks/gas-core
 A typed wrapper around `google.script.run` that returns Promises.
 
 ```ts
-import { executeFn } from '@sarfrajadstreaks/gas-core/client';
+import { executeFn } from '@sarfrajakhtar/gas-core/client';
 
 // Call a server function by name
 const users = await executeFn<User[]>('getUsers');
@@ -43,7 +43,7 @@ const user = await executeFn<User>('getUserById', ['abc123']);
 ### Execution Modes
 
 ```ts
-import { configureExecution, executeFn } from '@sarfrajadstreaks/gas-core/client';
+import { configureExecution, executeFn } from '@sarfrajakhtar/gas-core/client';
 
 // Direct mode (default) — calls server functions directly
 configureExecution({ mode: 'direct' });
@@ -58,7 +58,7 @@ Create a typed service layer so your components never deal with raw function nam
 
 ```ts
 // src/services/user-service.ts
-import { executeFn } from '@sarfrajadstreaks/gas-core/client';
+import { executeFn } from '@sarfrajakhtar/gas-core/client';
 
 export const getUsers = () => executeFn<User[]>('getUsers');
 export const getUserById = (id: string) => executeFn<User>('getUserById', [id]);
@@ -79,7 +79,7 @@ const users = await getUsers(); // Fully typed
 Generic CRUD for Google Sheets. Each sheet is a "table" — row 1 is headers, rows 2+ are data.
 
 ```ts
-import { DataStore } from '@sarfrajadstreaks/gas-core/server';
+import { DataStore } from '@sarfrajakhtar/gas-core/server';
 
 // Read all rows
 const users = DataStore.getAll<User>('users');
@@ -128,7 +128,7 @@ DataStore.ensureTable('users', ['id', 'name', 'email', 'role']);
 Wrapper around GAS `CacheService` with JSON serialization.
 
 ```ts
-import { initCache, getFromCache, putInCache, withCache } from '@sarfrajadstreaks/gas-core/server';
+import { initCache, getFromCache, putInCache, withCache } from '@sarfrajakhtar/gas-core/server';
 
 // Initialize (call once in your server entry)
 initCache({ defaultDuration: 300 }, true);
@@ -163,7 +163,7 @@ const users = withCache({
 Helper to create the `doGet()` entry point with proper configuration.
 
 ```ts
-import { initApp } from '@sarfrajadstreaks/gas-core/server';
+import { initApp } from '@sarfrajakhtar/gas-core/server';
 
 const app = initApp({
   title: 'My App',
@@ -185,7 +185,7 @@ function doGet(e) {
 **Server** (`src/server/index.ts` → bundled into `Code.js`):
 
 ```ts
-import { DataStore } from '@sarfrajadstreaks/gas-core/server';
+import { DataStore } from '@sarfrajakhtar/gas-core/server';
 
 export function getUsers() {
   return DataStore.getAll('users');
@@ -200,7 +200,7 @@ export function createUser(data: Record<string, unknown>) {
 **Service** (`src/services/user-service.ts` → bundled into client JS):
 
 ```ts
-import { executeFn } from '@sarfrajadstreaks/gas-core/client';
+import { executeFn } from '@sarfrajakhtar/gas-core/client';
 
 export const getUsers = () => executeFn<User[]>('getUsers');
 export const createUser = (data: User) => executeFn('createUser', [data]);

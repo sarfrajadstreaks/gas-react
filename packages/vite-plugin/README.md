@@ -1,4 +1,4 @@
-# @sarfrajadstreaks/gas-vite-plugin
+# gas-vite-plugin
 
 **Deploy React apps to Google Apps Script — with code splitting.**
 
@@ -48,7 +48,7 @@ dist/
 ### 1. Install
 
 ```bash
-npm install @sarfrajadstreaks/gas-vite-plugin
+npm install gas-vite-plugin
 npm install -D vite @vitejs/plugin-react
 ```
 
@@ -56,7 +56,7 @@ npm install -D vite @vitejs/plugin-react
 
 ```ts
 // vite.config.ts
-import { createGASViteConfig } from '@sarfrajadstreaks/gas-vite-plugin';
+import { createGASViteConfig } from 'gas-vite-plugin';
 
 export default createGASViteConfig({
   clientRoot: 'src',
@@ -137,7 +137,7 @@ Returns a complete Vite config. All options are optional:
 Use this if you're building your own Vite config instead of using `createGASViteConfig()`:
 
 ```ts
-import { gasPlugin } from '@sarfrajadstreaks/gas-vite-plugin';
+import { gasPlugin } from 'gas-vite-plugin';
 import react from '@vitejs/plugin-react';
 
 export default {

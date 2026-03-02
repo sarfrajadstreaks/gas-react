@@ -1,5 +1,5 @@
 {
-  "name": "@sarfrajadstreaks/gas-vite-plugin",
+  "name": "gas-vite-plugin",
   "version": "0.1.0",
   "description": "Vite plugin that deploys React apps to Google Apps Script with automatic code splitting",
   "type": "module",
@@ -7,8 +7,12 @@
   "author": "Sarfraj Akhtar",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sarfrajadstreaks/gas-react",
+    "url": "git+https://github.com/sarfrajakhtar/gas-react.git",
     "directory": "packages/vite-plugin"
+  },
+  "homepage": "https://github.com/sarfrajakhtar/gas-react/tree/main/packages/vite-plugin",
+  "bugs": {
+    "url": "https://github.com/sarfrajakhtar/gas-react/issues"
   },
   "keywords": [
     "vite",
@@ -19,6 +23,13 @@
     "code-splitting",
     "clasp"
   ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -27,17 +38,25 @@
   },
   "typesVersions": {
     "*": {
-      ".": ["dist/index.d.ts"]
+      ".": [
+        "dist/index.d.ts"
+      ]
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "peerDependencies": {
-    "vite": ">=5.0.0",
-    "@vitejs/plugin-react": ">=4.0.0"
+    "@vitejs/plugin-react": ">=4.0.0",
+    "vite": ">=5.0.0"
   },
   "peerDependenciesMeta": {
     "@vitejs/plugin-react": {
@@ -47,6 +66,7 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "tsup": "^8.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   }
 }
