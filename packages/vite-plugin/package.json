@@ -52,7 +52,9 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build",
+    "release": "npm run build && npm test && npm version patch && npm publish --access public && git push && git push --tags && gh release create vite-plugin-gas-react@$(node -p \"require('./package.json').version\") --generate-notes --title \"vite-plugin-gas-react v$(node -p \"require('./package.json').version\")\""
   },
   "peerDependencies": {
     "@vitejs/plugin-react": ">=4.0.0",

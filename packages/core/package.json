@@ -1,5 +1,5 @@
 {
-  "name": "@sarfrajakhtar/gas-core",
+  "name": "gas-react-core",
   "version": "0.1.0",
   "description": "Client-server bridge and server utilities for Google Apps Script React apps",
   "type": "module",
@@ -7,8 +7,12 @@
   "author": "Sarfraj Akhtar",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sarfrajakhtar/gas-react",
+    "url": "git+https://github.com/sarfrajadstreaks/gas-react.git",
     "directory": "packages/core"
+  },
+  "homepage": "https://github.com/sarfrajadstreaks/gas-react/tree/main/packages/core",
+  "bugs": {
+    "url": "https://github.com/sarfrajadstreaks/gas-react/issues"
   },
   "keywords": [
     "google-apps-script",
@@ -18,6 +22,10 @@
     "datastore",
     "cache"
   ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
   "exports": {
     "./client": {
       "types": "./dist/client/index.d.ts",
@@ -30,18 +38,31 @@
   },
   "typesVersions": {
     "*": {
-      "client": ["dist/client/index.d.ts"],
-      "server": ["dist/server/index.d.ts"]
+      "client": [
+        "dist/client/index.d.ts"
+      ],
+      "server": [
+        "dist/server/index.d.ts"
+      ]
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build",
+    "release": "npm run build && npm test && npm version patch && npm publish --access public && git push && git push --tags && gh release create gas-core@$(node -p \"require('./package.json').version\") --generate-notes --title \"gas-react-core v$(node -p \"require('./package.json').version\")\""
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
     "tsup": "^8.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   }
 }

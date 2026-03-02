@@ -1,4 +1,4 @@
-# @sarfrajakhtar/gas-core
+# gas-react-core
 
 **Client-server bridge and server utilities for Google Apps Script React apps.**
 
@@ -9,15 +9,15 @@
 ## Install
 
 ```bash
-npm install @sarfrajakhtar/gas-core
+npm install gas-react-core
 ```
 
 ## Two Entry Points
 
 | Import | Runs In | Purpose |
 |---|---|---|
-| `@sarfrajakhtar/gas-core/client` | Browser (React) | Call server functions via `google.script.run` |
-| `@sarfrajakhtar/gas-core/server` | GAS runtime | Sheet CRUD, caching, app initialization |
+| `gas-react-core/client` | Browser (React) | Call server functions via `google.script.run` |
+| `gas-react-core/server` | GAS runtime | Sheet CRUD, caching, app initialization |
 
 ---
 
@@ -26,7 +26,7 @@ npm install @sarfrajakhtar/gas-core
 A typed wrapper around `google.script.run` that returns Promises.
 
 ```ts
-import { executeFn } from '@sarfrajakhtar/gas-core/client';
+import { executeFn } from 'gas-react-core/client';
 
 // Call a server function by name
 const users = await executeFn<User[]>('getUsers');
@@ -43,7 +43,7 @@ const user = await executeFn<User>('getUserById', ['abc123']);
 ### Execution Modes
 
 ```ts
-import { configureExecution, executeFn } from '@sarfrajakhtar/gas-core/client';
+import { configureExecution, executeFn } from 'gas-react-core/client';
 
 // Direct mode (default) — calls server functions directly
 configureExecution({ mode: 'direct' });
@@ -52,13 +52,31 @@ configureExecution({ mode: 'direct' });
 configureExecution({ mode: 'library' });
 ```
 
+**Direct mode** (default): Your React UI and server code live in the same GAS project. `executeFn('getUsers')` calls `google.script.run.getUsers()` directly.
+
+**Library mode**: Your project is published as a GAS [Library](https://developers.google.com/apps-script/guides/libraries). Library functions aren't available on `google.script.run`, so all calls route through a single proxy function `runLibraryFunction(funcName, args)` that the consuming script must define:
+
+```js
+// In the consumer's Code.gs (the script that imported your library as "MyLib")
+function runLibraryFunction(funcName, args) {
+  return MyLib[funcName].apply(null, args);
+}
+```
+
+Then in your React client:
+```ts
+configureExecution({ mode: 'library' });
+const users = await executeFn<User[]>('getUsers');
+// → calls google.script.run.runLibraryFunction('getUsers', [])
+```
+
 ### Service Layer Pattern
 
 Create a typed service layer so your components never deal with raw function names:
 
 ```ts
 // src/services/user-service.ts
-import { executeFn } from '@sarfrajakhtar/gas-core/client';
+import { executeFn } from 'gas-react-core/client';
 
 export const getUsers = () => executeFn<User[]>('getUsers');
 export const getUserById = (id: string) => executeFn<User>('getUserById', [id]);
@@ -79,7 +97,7 @@ const users = await getUsers(); // Fully typed
 Generic CRUD for Google Sheets. Each sheet is a "table" — row 1 is headers, rows 2+ are data.
 
 ```ts
-import { DataStore } from '@sarfrajakhtar/gas-core/server';
+import { DataStore } from 'gas-react-core/server';
 
 // Read all rows
 const users = DataStore.getAll<User>('users');
@@ -127,17 +145,25 @@ DataStore.ensureTable('users', ['id', 'name', 'email', 'role']);
 
 Wrapper around GAS `CacheService` with JSON serialization.
 
+> **Nothing is cached automatically.** You decide what to cache by using `withCache` or `getFromCache`/`putInCache` in your server functions. `DataStore` always hits Google Sheets directly — caching is an opt-in layer you apply on top.
+
 ```ts
-import { initCache, getFromCache, putInCache, withCache } from '@sarfrajakhtar/gas-core/server';
+import { initCache, getFromCache, putInCache, removeFromCache, withCache } from 'gas-react-core/server';
 
 // Initialize (call once in your server entry)
-initCache({ defaultDuration: 300 }, true);
+// - config: map of cache keys → { key, duration } (provides default TTLs)
+// - enabled: global kill switch (false = all cache ops become no-ops)
+initCache({
+  'all-users': { key: 'all-users', duration: 300 },
+  'all-products': { key: 'all-products', duration: 600 },
+}, true);
 
 // Manual get/put
 const data = getFromCache<User[]>('all-users');
-putInCache('all-users', users, 600); // 600s TTL
+putInCache('all-users', users, 600); // 600s TTL (overrides default)
 
-// Fetch-through pattern
+// Fetch-through pattern (recommended)
+// Checks cache first → on miss, calls fetchFunction → stores result → returns it
 const users = withCache({
   cacheKey: 'all-users',
   fetchFunction: () => DataStore.getAll<User>('users'),
@@ -145,16 +171,45 @@ const users = withCache({
 });
 ```
 
+### Typical usage pattern
+
+```ts
+// READ — wrap with withCache to serve from cache when available
+function getUsers() {
+  return withCache({
+    cacheKey: 'all-users',
+    fetchFunction: () => DataStore.getAll<User>('users'),
+  });
+}
+
+// WRITE — update the sheet, then invalidate the cache
+function createUser(data: User) {
+  DataStore.insert('users', data);
+  removeFromCache('all-users'); // next getUsers() call will re-fetch from Sheets
+}
+```
+
+### `enabled: false` — kill switch
+
+```ts
+initCache({ ... }, false);
+// Now all cache functions become no-ops:
+// - getFromCache() always returns null
+// - putInCache() does nothing
+// - withCache() always calls fetchFunction directly
+// Useful for debugging or when you want to bypass caching entirely.
+```
+
 ### API
 
 | Function | Description |
 |---|---|
-| `initCache(config, enabled)` | Set default duration and enable/disable |
-| `getFromCache<T>(key, suffix?)` | Get cached value (returns `null` if miss) |
-| `putInCache(key, data, duration?, suffix?)` | Store value with TTL |
+| `initCache(config, enabled)` | Register cache keys with default TTLs and enable/disable caching globally. `config` is `Record<string, { key: string; duration: number }>`. |
+| `getFromCache<T>(key, suffix?)` | Get cached value (returns `null` on miss or if disabled) |
+| `putInCache(key, data, duration?, suffix?)` | Store value with TTL. Falls back to config duration, then 21600s (6h). |
 | `removeFromCache(key, suffix?)` | Invalidate a cache entry |
-| `clearAllCache()` | Clear all cached data |
-| `withCache({ cacheKey, fetchFunction, duration })` | Cache-aside pattern |
+| `clearAllCache()` | Clear all cached keys registered in config |
+| `withCache({ cacheKey, fetchFunction, duration })` | Cache-aside: return cached value if available, otherwise fetch → cache → return |
 
 ---
 
@@ -163,7 +218,7 @@ const users = withCache({
 Helper to create the `doGet()` entry point with proper configuration.
 
 ```ts
-import { initApp } from '@sarfrajakhtar/gas-core/server';
+import { initApp } from 'gas-react-core/server';
 
 const app = initApp({
   title: 'My App',
@@ -185,14 +240,29 @@ function doGet(e) {
 **Server** (`src/server/index.ts` → bundled into `Code.js`):
 
 ```ts
-import { DataStore } from '@sarfrajakhtar/gas-core/server';
+import { DataStore, initCache, withCache, removeFromCache, initApp } from 'gas-react-core/server';
 
+// Initialize cache with default TTLs per key
+initCache({
+  'all-users': { key: 'all-users', duration: 300 },
+}, true);
+
+// Initialize the web app
+const app = initApp({ title: 'My App' });
+export function doGet(e: unknown) { return app.doGet(e); }
+
+// READ — served from cache when available
 export function getUsers() {
-  return DataStore.getAll('users');
+  return withCache({
+    cacheKey: 'all-users',
+    fetchFunction: () => DataStore.getAll('users'),
+  });
 }
 
+// WRITE — update sheet, then invalidate cache
 export function createUser(data: Record<string, unknown>) {
   DataStore.insert('users', data);
+  removeFromCache('all-users');
   return { success: true };
 }
 ```
@@ -200,7 +270,7 @@ export function createUser(data: Record<string, unknown>) {
 **Service** (`src/services/user-service.ts` → bundled into client JS):
 
 ```ts
-import { executeFn } from '@sarfrajakhtar/gas-core/client';
+import { executeFn } from 'gas-react-core/client';
 
 export const getUsers = () => executeFn<User[]>('getUsers');
 export const createUser = (data: User) => executeFn('createUser', [data]);
