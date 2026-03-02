@@ -2,7 +2,7 @@
 
 **Build and deploy React apps to Google Apps Script — with code splitting, server-side functions, and zero boilerplate.**
 
-> Write a standard React + Vite app. Run one command. Get a working GAS web app.
+> Write a standard React app with Vite or Webpack. Run one command. Get a working GAS web app.
 
 ---
 
@@ -11,6 +11,7 @@
 | Package | Description |
 |---|---|
 | [`vite-plugin-gas-react`](./packages/vite-plugin) | Vite plugin — transforms React builds for GAS deployment with code splitting |
+| [`webpack-plugin-gas-react`](./packages/webpack-plugin) | Webpack plugin — same GAS deployment pipeline for webpack 5+ |
 | [`gas-react-core`](./packages/core) | Client-server bridge (`executeFn`) and server utilities (`DataStore`, `Cache`) |
 
 ## How It Works
@@ -95,6 +96,7 @@ npm run build
 ```
 packages/
   vite-plugin/   → vite-plugin-gas-react
+  webpack-plugin/→ webpack-plugin-gas-react
   core/          → gas-react-core
 ```
 

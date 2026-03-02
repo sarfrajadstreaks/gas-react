@@ -1,0 +1,67 @@
+{
+  "name": "webpack-plugin-gas-react",
+  "version": "0.1.2",
+  "description": "Webpack plugin that deploys React apps to Google Apps Script with automatic code splitting",
+  "type": "module",
+  "license": "MIT",
+  "author": "Sarfraj Akhtar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sarfrajadstreaks/gas-react.git",
+    "directory": "packages/webpack-plugin"
+  },
+  "homepage": "https://github.com/sarfrajadstreaks/gas-react/tree/main/packages/webpack-plugin",
+  "bugs": {
+    "url": "https://github.com/sarfrajadstreaks/gas-react/issues"
+  },
+  "keywords": [
+    "webpack",
+    "webpack-plugin",
+    "google-apps-script",
+    "gas",
+    "react",
+    "code-splitting",
+    "clasp"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      ".": ["dist/index.d.ts"]
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "webpack": ">=5.0.0",
+    "html-webpack-plugin": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "html-webpack-plugin": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  }
+}
