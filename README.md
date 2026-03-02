@@ -10,7 +10,7 @@
 
 | Package | Description |
 |---|---|
-| [`gas-vite-plugin`](./packages/vite-plugin) | Vite plugin — transforms React builds for GAS deployment with code splitting |
+| [`vite-plugin-gas-react`](./packages/vite-plugin) | Vite plugin — transforms React builds for GAS deployment with code splitting |
 | [`@sarfrajakhtar/gas-core`](./packages/core) | Client-server bridge (`executeFn`) and server utilities (`DataStore`, `Cache`) |
 
 ## How It Works
@@ -29,13 +29,13 @@ React App (Vite)
 ## Quick Start
 
 ```bash
-npm install gas-vite-plugin @sarfrajakhtar/gas-core
+npm install vite-plugin-gas-react @sarfrajakhtar/gas-core
 ```
 
 ### vite.config.ts
 
 ```ts
-import { createGASViteConfig } from 'gas-vite-plugin';
+import { createGASViteConfig } from 'vite-plugin-gas-react';
 
 export default createGASViteConfig({
   clientRoot: 'src',
@@ -84,7 +84,7 @@ cd dist && clasp push
 ## Development
 
 ```bash
-git clone https://github.com/sarfrajakhtar/gas-react.git
+git clone https://github.com/sarfrajadstreaks/gas-react.git
 cd gas-react
 npm install
 npm run build
@@ -94,7 +94,7 @@ npm run build
 
 ```
 packages/
-  vite-plugin/   → gas-vite-plugin
+  vite-plugin/   → vite-plugin-gas-react
   core/          → @sarfrajakhtar/gas-core
 ```
 

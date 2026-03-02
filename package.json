@@ -7,7 +7,7 @@
   "author": "Sarfraj Akhtar",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sarfrajakhtar/gas-react"
+    "url": "https://github.com/sarfrajadstreaks/gas-react"
   },
   "workspaces": [
     "packages/*"
