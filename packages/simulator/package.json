@@ -1,0 +1,57 @@
+{
+  "name": "lite-gas-simulator",
+  "version": "0.1.0",
+  "description": "Lightweight local simulator for Google Apps Script – mock SpreadsheetApp, CacheService and more using JSON data sources",
+  "type": "module",
+  "license": "MIT",
+  "author": "Sarfraj Akhtar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sarfrajadstreaks/gas-react.git",
+    "directory": "packages/simulator"
+  },
+  "homepage": "https://github.com/sarfrajadstreaks/gas-react/tree/main/packages/simulator",
+  "bugs": {
+    "url": "https://github.com/sarfrajadstreaks/gas-react/issues"
+  },
+  "keywords": [
+    "google-apps-script",
+    "gas",
+    "simulator",
+    "mock",
+    "local-dev",
+    "spreadsheet",
+    "testing"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  }
+}
