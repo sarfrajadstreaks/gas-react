@@ -29,9 +29,16 @@ interface WebpackCompiler {
     thisCompilation: {
       tap(name: string, fn: (compilation: WebpackCompilation) => void): void;
     };
-    emit: {
-      tapAsync(name: string, fn: (compilation: WebpackCompilation, callback: () => void) => void): void;
-      tapPromise(name: string, fn: (compilation: WebpackCompilation) => Promise<void>): void;
+    compilation: {
+      tap(name: string, fn: (compilation: WebpackCompilation) => void): void;
+    };
+  };
+  webpack: {
+    Compilation: {
+      PROCESS_ASSETS_STAGE_OPTIMIZE_TRANSFER: number;
+    };
+    sources: {
+      RawSource: new (content: string) => WebpackSource;
     };
   };
 }
@@ -43,6 +50,14 @@ interface WebpackCompilation {
   chunkGraph: {
     getChunkModules(chunk: WebpackChunk): WebpackModule[];
   };
+  hooks: {
+    processAssets: {
+      tapPromise(
+        options: { name: string; stage: number },
+        fn: () => Promise<void>,
+      ): void;
+    };
+  };
   getAsset(name: string): { source: WebpackSource } | undefined;
   updateAsset(name: string, source: WebpackSource): void;
   emitAsset(name: string, source: WebpackSource): void;
@@ -52,6 +67,8 @@ interface WebpackCompilation {
 interface WebpackSource {
   source(): string;
   size(): number;
+  sourceAndMap?(): { source: string; map: unknown };
+  map?(): unknown;
 }
 
 interface WebpackEntrypoint {
@@ -75,11 +92,14 @@ interface WebpackModule {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-/** Create a simple webpack-compatible source object */
+/** Create a simple webpack-compatible source object (fallback only, prefer compiler.webpack.sources.RawSource) */
 function createRawSource(content: string): WebpackSource {
+  const buf = Buffer.byteLength(content, 'utf-8');
   return {
     source: () => content,
-    size: () => Buffer.byteLength(content, 'utf-8'),
+    size: () => buf,
+    sourceAndMap: () => ({ source: content, map: null }),
+    map: () => null,
   };
 }
 
@@ -163,10 +183,28 @@ export class GASWebpackPlugin {
     };
   }
 
+  private makeSource: (content: string) => WebpackSource = createRawSource;
+
   apply(compiler: WebpackCompiler): void {
-    // Hook into emit phase to transform the output
-    compiler.hooks.emit.tapPromise(PLUGIN_NAME, async (compilation) => {
-      await this.transformOutput(compilation, compiler);
+    // Prefer webpack's built-in RawSource for full compatibility with
+    // the processAssets pipeline (terser etc. call sourceAndMap()).
+    if (compiler.webpack?.sources?.RawSource) {
+      const { RawSource } = compiler.webpack.sources;
+      this.makeSource = (content: string) => new RawSource(content);
+    }
+
+    // Use compilation.hooks.processAssets instead of the deprecated compiler.hooks.emit
+    // to avoid the DEP_WEBPACK_COMPILATION_ASSETS warning in webpack 5.
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      compilation.hooks.processAssets.tapPromise(
+        {
+          name: PLUGIN_NAME,
+          stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_TRANSFER,
+        },
+        async () => {
+          await this.transformOutput(compilation, compiler);
+        },
+      );
     });
   }
 
@@ -200,7 +238,7 @@ export class GASWebpackPlugin {
     // ── Step 2: Wrap entry code as a string variable ───────────────
     // No rewriting needed — we intercept chunk loading at the DOM level
     const entryVar = `var __GAS_ENTRY_CODE__ = ${JSON.stringify(entryCode)};`;
-    compilation.emitAsset('__gas_entry__.js', createRawSource(entryVar));
+    compilation.emitAsset('__gas_entry__.js', this.makeSource(entryVar));
 
     // ── Step 3: Store async chunks as GAS string variables ─────────
     // Keep chunks in their ORIGINAL webpack JSONP format. When executed
@@ -227,7 +265,7 @@ export class GASWebpackPlugin {
     }
 
     if (chunkVars.length > 0) {
-      compilation.emitAsset('__gas_chunks__.js', createRawSource(chunkVars.join('\n')));
+      compilation.emitAsset('__gas_chunks__.js', this.makeSource(chunkVars.join('\n')));
     }
 
     // Remove original entry JS
@@ -257,7 +295,7 @@ export class GASWebpackPlugin {
       );
       html = html.replace('</body>', finalScript + '\n</body>');
 
-      compilation.assets[htmlFile] = createRawSource(html);
+      compilation.assets[htmlFile] = this.makeSource(html);
     }
 
     // ── Step 5: Generate Code.js ───────────────────────────────────
@@ -307,7 +345,7 @@ export class GASWebpackPlugin {
       ``,
     ].join('\n');
 
-    compilation.emitAsset('Code.js', createRawSource(codeJs));
+    compilation.emitAsset('Code.js', this.makeSource(codeJs));
 
     // ── Step 6: Generate appsscript.json ───────────────────────────
     const appsscript = JSON.stringify(
@@ -325,6 +363,6 @@ export class GASWebpackPlugin {
       2,
     );
 
-    compilation.emitAsset('appsscript.json', createRawSource(appsscript));
+    compilation.emitAsset('appsscript.json', this.makeSource(appsscript));
   }
 }

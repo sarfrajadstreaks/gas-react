@@ -52,19 +52,20 @@ describe('GASWebpackPlugin', () => {
     expect(typeof plugin.apply).toBe('function');
   });
 
-  it('taps into emit hook when apply is called', () => {
+  it('taps into compilation → processAssets hook when apply is called', () => {
     const plugin = new GASWebpackPlugin();
-    const tapPromiseFn = vi.fn();
+    const compilationTapFn = vi.fn();
     const compiler = {
       options: { context: '/project', output: {} },
+      webpack: { Compilation: { PROCESS_ASSETS_STAGE_OPTIMIZE_TRANSFER: 3000 } },
       hooks: {
         thisCompilation: { tap: vi.fn() },
-        emit: { tapAsync: vi.fn(), tapPromise: tapPromiseFn },
+        compilation: { tap: compilationTapFn },
       },
     };
 
     plugin.apply(compiler as never);
-    expect(tapPromiseFn).toHaveBeenCalledWith('GASWebpackPlugin', expect.any(Function));
+    expect(compilationTapFn).toHaveBeenCalledWith('GASWebpackPlugin', expect.any(Function));
   });
 });
 
@@ -124,6 +125,11 @@ describe('GASWebpackPlugin — transformOutput', () => {
       entrypoints: new Map([['main', entrypoint]]),
       chunks: allChunks,
       chunkGraph: { getChunkModules: () => [] },
+      hooks: {
+        processAssets: {
+          tapPromise: vi.fn(),
+        },
+      },
       getAsset: (name: string) => assets[name] ? { source: assets[name] } : undefined,
       updateAsset: (name: string, source: ReturnType<typeof createMockSource>) => {
         assets[name] = source;
@@ -140,6 +146,39 @@ describe('GASWebpackPlugin — transformOutput', () => {
     };
   }
 
+  /**
+   * Helper: apply plugin, capture the processAssets callback, and invoke it.
+   */
+  async function applyAndRun(
+    plugin: GASWebpackPlugin,
+    compilation: ReturnType<typeof createMockCompilation>,
+  ) {
+    let processAssetsFn: (() => Promise<void>) | undefined;
+
+    const compiler = {
+      options: { context: '/project', output: {} },
+      webpack: { Compilation: { PROCESS_ASSETS_STAGE_OPTIMIZE_TRANSFER: 3000 } },
+      hooks: {
+        thisCompilation: { tap: vi.fn() },
+        compilation: {
+          tap: (_name: string, cb: (comp: typeof compilation) => void) => {
+            // Intercept the processAssets tap inside the callback
+            compilation.hooks.processAssets.tapPromise = vi.fn(
+              (_opts: unknown, fn: () => Promise<void>) => {
+                processAssetsFn = fn;
+              },
+            );
+            cb(compilation);
+          },
+        },
+      },
+    };
+
+    plugin.apply(compiler as never);
+    expect(processAssetsFn).toBeDefined();
+    await processAssetsFn!();
+  }
+
   it('generates Code.js with doGet, getPage, getEntryCode', async () => {
     const plugin = new GASWebpackPlugin({ appTitle: 'TestApp' });
 
@@ -148,23 +187,7 @@ describe('GASWebpackPlugin — transformOutput', () => {
       htmlContent: '<html><body></body></html>',
     });
 
-    // Call the private method via the tap callback
-    const tapFn = vi.fn();
-    const compiler = {
-      options: { context: '/project', output: {} },
-      hooks: {
-        thisCompilation: { tap: vi.fn() },
-        emit: {
-          tapAsync: vi.fn(),
-          tapPromise: (_name: string, fn: (comp: unknown) => Promise<void>) => {
-            tapFn.mockImplementation(fn);
-          },
-        },
-      },
-    };
-
-    plugin.apply(compiler as never);
-    await tapFn(compilation);
+    await applyAndRun(plugin, compilation);
 
     expect(emittedAssets['Code.js']).toBeDefined();
     expect(emittedAssets['Code.js']).toContain('function doGet()');
@@ -181,22 +204,7 @@ describe('GASWebpackPlugin — transformOutput', () => {
       htmlContent: '<html><body></body></html>',
     });
 
-    const tapFn = vi.fn();
-    const compiler = {
-      options: { context: '/project', output: {} },
-      hooks: {
-        thisCompilation: { tap: vi.fn() },
-        emit: {
-          tapAsync: vi.fn(),
-          tapPromise: (_name: string, fn: (comp: unknown) => Promise<void>) => {
-            tapFn.mockImplementation(fn);
-          },
-        },
-      },
-    };
-
-    plugin.apply(compiler as never);
-    await tapFn(compilation);
+    await applyAndRun(plugin, compilation);
 
     expect(emittedAssets['appsscript.json']).toBeDefined();
     const manifest = JSON.parse(emittedAssets['appsscript.json']);
@@ -212,22 +220,7 @@ describe('GASWebpackPlugin — transformOutput', () => {
       htmlContent: '<html><body></body></html>',
     });
 
-    const tapFn = vi.fn();
-    const compiler = {
-      options: { context: '/project', output: {} },
-      hooks: {
-        thisCompilation: { tap: vi.fn() },
-        emit: {
-          tapAsync: vi.fn(),
-          tapPromise: (_name: string, fn: (comp: unknown) => Promise<void>) => {
-            tapFn.mockImplementation(fn);
-          },
-        },
-      },
-    };
-
-    plugin.apply(compiler as never);
-    await tapFn(compilation);
+    await applyAndRun(plugin, compilation);
 
     expect(emittedAssets['__gas_entry__.js']).toBeDefined();
     expect(emittedAssets['__gas_entry__.js']).toContain('__GAS_ENTRY_CODE__');
@@ -242,22 +235,7 @@ describe('GASWebpackPlugin — transformOutput', () => {
       htmlContent: '<html><body></body></html>',
     });
 
-    const tapFn = vi.fn();
-    const compiler = {
-      options: { context: '/project', output: {} },
-      hooks: {
-        thisCompilation: { tap: vi.fn() },
-        emit: {
-          tapAsync: vi.fn(),
-          tapPromise: (_name: string, fn: (comp: unknown) => Promise<void>) => {
-            tapFn.mockImplementation(fn);
-          },
-        },
-      },
-    };
-
-    plugin.apply(compiler as never);
-    await tapFn(compilation);
+    await applyAndRun(plugin, compilation);
 
     expect(deletedAssets).toContain('main.js');
   });
@@ -270,22 +248,7 @@ describe('GASWebpackPlugin — transformOutput', () => {
       htmlContent: '<html><head></head><body><div id="root"></div></body></html>',
     });
 
-    const tapFn = vi.fn();
-    const compiler = {
-      options: { context: '/project', output: {} },
-      hooks: {
-        thisCompilation: { tap: vi.fn() },
-        emit: {
-          tapAsync: vi.fn(),
-          tapPromise: (_name: string, fn: (comp: unknown) => Promise<void>) => {
-            tapFn.mockImplementation(fn);
-          },
-        },
-      },
-    };
-
-    plugin.apply(compiler as never);
-    await tapFn(compilation);
+    await applyAndRun(plugin, compilation);
 
     const html = compilation.assets['index.html'].source();
     expect(html).toContain('origAppendChild');
@@ -302,22 +265,7 @@ describe('GASWebpackPlugin — transformOutput', () => {
         '<html><head></head><body><script src="main.js"></script></body></html>',
     });
 
-    const tapFn = vi.fn();
-    const compiler = {
-      options: { context: '/project', output: {} },
-      hooks: {
-        thisCompilation: { tap: vi.fn() },
-        emit: {
-          tapAsync: vi.fn(),
-          tapPromise: (_name: string, fn: (comp: unknown) => Promise<void>) => {
-            tapFn.mockImplementation(fn);
-          },
-        },
-      },
-    };
-
-    plugin.apply(compiler as never);
-    await tapFn(compilation);
+    await applyAndRun(plugin, compilation);
 
     const html = compilation.assets['index.html'].source();
     expect(html).not.toContain('src="main.js"');
