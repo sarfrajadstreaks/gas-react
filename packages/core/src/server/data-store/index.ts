@@ -29,11 +29,21 @@ function findMatchingRowNumbers(
   return matches;
 }
 
+/**
+ * Normalize a cell value so it is safe for `google.script.run` serialization.
+ * - `Date` objects → ISO-8601 strings (google.script.run silently returns
+ *   `null` for the entire response when *any* value is a native Date).
+ */
+function sanitizeCell(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString();
+  return value;
+}
+
 /** Convert a single sheet row into a record keyed by headers. */
 function rowToRecord(headers: string[], rowData: unknown[]): Record<string, unknown> {
   const record: Record<string, unknown> = {};
   headers.forEach((h, i) => {
-    if (h && String(h).trim()) record[h] = rowData[i];
+    if (h && String(h).trim()) record[h] = sanitizeCell(rowData[i]);
   });
   return record;
 }

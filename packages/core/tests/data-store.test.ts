@@ -87,6 +87,26 @@ describe('DataStore.getAll', () => {
     expect(result).toEqual([]);
   });
 
+  it('converts Date objects to ISO strings (google.script.run safety)', () => {
+    const checkIn = new Date('2026-01-15T14:00:00.000Z');
+    const checkOut = new Date('2026-01-18T11:00:00.000Z');
+    seedSheet('reservations', ['id', 'guest', 'checkIn', 'checkOut'], [
+      { id: '1', guest: 'Alice', checkIn, checkOut },
+    ]);
+
+    const rows = DataStore.getAll<{
+      id: string;
+      guest: string;
+      checkIn: string;
+      checkOut: string;
+    }>('reservations');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].checkIn).toBe('2026-01-15T14:00:00.000Z');
+    expect(rows[0].checkOut).toBe('2026-01-18T11:00:00.000Z');
+    expect(typeof rows[0].checkIn).toBe('string');
+  });
+
   it('throws when sheet does not exist', () => {
     expect(() => DataStore.getAll('nonexistent')).toThrow("Table 'nonexistent' not found");
   });
@@ -131,6 +151,17 @@ describe('DataStore.findById', () => {
   it('returns null when not found', () => {
     const user = DataStore.findById('users', '99');
     expect(user).toBeNull();
+  });
+
+  it('converts Date objects to ISO strings', () => {
+    const createdAt = new Date('2026-03-01T10:00:00.000Z');
+    seedSheet('items', ['id', 'name', 'createdAt'], [
+      { id: '1', name: 'Widget', createdAt },
+    ]);
+
+    const item = DataStore.findById<{ id: string; createdAt: string }>('items', '1');
+    expect(item?.createdAt).toBe('2026-03-01T10:00:00.000Z');
+    expect(typeof item?.createdAt).toBe('string');
   });
 });
 
