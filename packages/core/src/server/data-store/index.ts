@@ -5,43 +5,94 @@ function getSheet(tableName: string) {
   return sheet;
 }
 
-function readAll(tableName: string): { headers: string[]; records: Record<string, unknown>[] } {
-  const sheet = getSheet(tableName);
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return { headers: [], records: [] };
+function getHeaders(sheet: GoogleAppsScript.Spreadsheet.Sheet): string[] {
+  return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] as string[];
+}
 
-  const allData = sheet.getRange(1, 1, lastRow, sheet.getLastColumn()).getValues();
-  const headers = allData[0] as string[];
-  const records = allData.slice(1).map((row) => {
-    const record: Record<string, unknown> = {};
-    headers.forEach((h, i) => {
-      if (h && String(h).trim()) record[h] = row[i];
-    });
-    return record;
+/** Read only a single column (data rows, no header) and return 1-based row numbers that match `value`. */
+function findMatchingRowNumbers(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  colIndex: number,
+  value: unknown,
+): number[] {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+
+  // Read only the target column for data rows — avoids pulling all columns
+  const colData = sheet.getRange(2, colIndex + 1, lastRow - 1, 1).getValues();
+  const matches: number[] = [];
+  for (let i = 0; i < colData.length; i++) {
+    if (String(colData[i][0]) === String(value)) {
+      matches.push(i + 2); // 1-based sheet row (skip header)
+    }
+  }
+  return matches;
+}
+
+/** Convert a single sheet row into a record keyed by headers. */
+function rowToRecord(headers: string[], rowData: unknown[]): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  headers.forEach((h, i) => {
+    if (h && String(h).trim()) record[h] = rowData[i];
   });
-  return { headers, records };
+  return record;
 }
 
 export const DataStore = {
   getAll<T = Record<string, unknown>>(tableName: string): T[] {
-    return readAll(tableName).records as T[];
+    const sheet = getSheet(tableName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return [];
+
+    const allData = sheet.getRange(1, 1, lastRow, sheet.getLastColumn()).getValues();
+    const headers = allData[0] as string[];
+    return allData.slice(1).map((row) => rowToRecord(headers, row) as T);
   },
 
   findBy<T = Record<string, unknown>>(tableName: string, field: string, value: unknown): T[] {
-    return readAll(tableName).records.filter(
-      (r) => String(r[field]) === String(value),
-    ) as T[];
+    const sheet = getSheet(tableName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return [];
+
+    const headers = getHeaders(sheet);
+    const colIndex = headers.indexOf(field);
+    if (colIndex === -1) return [];
+
+    // Read only the filter column, then fetch full rows for matches only
+    const matchingRows = findMatchingRowNumbers(sheet, colIndex, value);
+    if (matchingRows.length === 0) return [];
+
+    const numCols = headers.length;
+    return matchingRows.map((rowNum) => {
+      const rowData = sheet.getRange(rowNum, 1, 1, numCols).getValues()[0];
+      return rowToRecord(headers, rowData) as T;
+    });
   },
 
   findById<T = Record<string, unknown>>(tableName: string, id: string): T | null {
-    const results = this.findBy<T>(tableName, 'id', id);
-    return results.length > 0 ? results[0] : null;
+    const sheet = getSheet(tableName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return null;
+
+    const headers = getHeaders(sheet);
+    const colIndex = headers.indexOf('id');
+    if (colIndex === -1) return null;
+
+    // Read only the 'id' column, stop at first match
+    const colData = sheet.getRange(2, colIndex + 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < colData.length; i++) {
+      if (String(colData[i][0]) === String(id)) {
+        const rowData = sheet.getRange(i + 2, 1, 1, headers.length).getValues()[0];
+        return rowToRecord(headers, rowData) as T;
+      }
+    }
+    return null;
   },
 
   insert(tableName: string, rows: Record<string, unknown> | Record<string, unknown>[]): number {
     const arr = Array.isArray(rows) ? rows : [rows];
     const sheet = getSheet(tableName);
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] as string[];
+    const headers = getHeaders(sheet);
     const startRow = sheet.getLastRow() + 1;
     const data = arr.map((r) => headers.map((h) => r[h] ?? ''));
     if (data.length > 0) {
@@ -52,43 +103,40 @@ export const DataStore = {
 
   update(tableName: string, keyField: string, keyValue: unknown, updates: Record<string, unknown>): number {
     const sheet = getSheet(tableName);
-    const allData = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
-    const headers = allData[0] as string[];
+    const headers = getHeaders(sheet);
     const keyCol = headers.indexOf(keyField);
     if (keyCol === -1) throw new Error(`Field '${keyField}' not found in '${tableName}'`);
 
-    let count = 0;
-    for (let i = 1; i < allData.length; i++) {
-      if (String(allData[i][keyCol]) === String(keyValue)) {
-        const record: Record<string, unknown> = {};
-        headers.forEach((h, c) => { record[h] = allData[i][c]; });
-        const merged = { ...record, ...updates };
-        const row = headers.map((h) => merged[h] ?? '');
-        sheet.getRange(i + 1, 1, 1, headers.length).setValues([row]);
-        count++;
-      }
+    // Read only the key column, then update only matching rows
+    const matchingRows = findMatchingRowNumbers(sheet, keyCol, keyValue);
+    if (matchingRows.length === 0) return 0;
+
+    const numCols = headers.length;
+    for (const rowNum of matchingRows) {
+      const rowData = sheet.getRange(rowNum, 1, 1, numCols).getValues()[0];
+      const record = rowToRecord(headers, rowData);
+      const merged = { ...record, ...updates };
+      const row = headers.map((h) => merged[h] ?? '');
+      sheet.getRange(rowNum, 1, 1, numCols).setValues([row]);
     }
-    return count;
+    return matchingRows.length;
   },
 
   remove(tableName: string, keyField: string, keyValue: unknown): number {
     const sheet = getSheet(tableName);
-    const allData = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
-    const headers = allData[0] as string[];
+    const headers = getHeaders(sheet);
     const keyCol = headers.indexOf(keyField);
     if (keyCol === -1) throw new Error(`Field '${keyField}' not found in '${tableName}'`);
 
-    const rowsToDelete: number[] = [];
-    for (let i = 1; i < allData.length; i++) {
-      if (String(allData[i][keyCol]) === String(keyValue)) {
-        rowsToDelete.push(i + 1);
-      }
-    }
+    // Read only the key column to find rows to delete
+    const matchingRows = findMatchingRowNumbers(sheet, keyCol, keyValue);
+    if (matchingRows.length === 0) return 0;
+
     // Delete bottom-to-top to keep indices valid
-    for (let i = rowsToDelete.length - 1; i >= 0; i--) {
-      sheet.deleteRow(rowsToDelete[i]);
+    for (let i = matchingRows.length - 1; i >= 0; i--) {
+      sheet.deleteRow(matchingRows[i]);
     }
-    return rowsToDelete.length;
+    return matchingRows.length;
   },
 
   ensureTable(tableName: string, headers: string[]): void {
