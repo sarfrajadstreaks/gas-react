@@ -192,6 +192,130 @@ npx webpack
 cd dist && clasp push
 ```
 
+---
+
+## Combine with [`gas-react-core`](https://www.npmjs.com/package/gas-react-core)
+
+This plugin handles **build & deployment**. Pair it with [`gas-react-core`](https://www.npmjs.com/package/gas-react-core) to unlock a complete client-server toolkit:
+
+```bash
+npm install gas-react-core
+```
+
+### What `gas-react-core` adds
+
+| Feature | Import | What it does |
+|---|---|---|
+| **`executeFn`** | `gas-react-core/client` | Typed Promise wrapper around `google.script.run` — call server functions from React without callbacks |
+| **`DataStore`** | `gas-react-core/server` | Generic CRUD for Google Sheets (getAll, findBy, insert, update, remove) — each sheet is a table |
+| **Cache utilities** | `gas-react-core/server` | `withCache`, `getFromCache`, `putInCache`, `removeFromCache` — opt-in caching on top of GAS `CacheService` |
+| **`initApp`** | `gas-react-core/server` | One-liner `doGet()` setup with title and meta tags |
+| **Library mode** | `gas-react-core/client` | Publish your project as a GAS Library — `executeFn` routes calls through a proxy function automatically |
+
+### Example: full-stack GAS app
+
+**Server** (`src/server/index.ts`):
+
+```ts
+import { DataStore, initCache, withCache, removeFromCache, initApp } from 'gas-react-core/server';
+
+initCache({
+  'all-users': { key: 'all-users', duration: 300 },
+}, true);
+
+const app = initApp({ title: 'My App' });
+export function doGet(e: unknown) { return app.doGet(e); }
+
+export function getUsers() {
+  return withCache({
+    cacheKey: 'all-users',
+    fetchFunction: () => DataStore.getAll('users'),
+  });
+}
+
+export function createUser(data: Record<string, unknown>) {
+  DataStore.insert('users', data);
+  removeFromCache('all-users');
+  return { success: true };
+}
+```
+
+**Client service** (`src/services/user-service.ts`):
+
+```ts
+import { executeFn } from 'gas-react-core/client';
+
+export const getUsers = () => executeFn<User[]>('getUsers');
+export const createUser = (data: User) => executeFn('createUser', [data]);
+```
+
+> **TL;DR** — `webpack-plugin-gas-react` builds & deploys your React app to GAS. `gas-react-core` gives you the server utilities (Sheets CRUD, caching, app init) and a typed client bridge (`executeFn`) to tie it all together.
+
+---
+
+## Local Testing with [`lite-gas-simulator`](https://www.npmjs.com/package/lite-gas-simulator)
+
+Develop and test your GAS server code **locally** — no `clasp push` required. [`lite-gas-simulator`](https://www.npmjs.com/package/lite-gas-simulator) mocks all GAS globals (`SpreadsheetApp`, `CacheService`, `PropertiesService`, `Logger`, etc.) against local JSON files so your server functions run unmodified on your machine.
+
+```bash
+npm install lite-gas-simulator --save-dev
+```
+
+### How it fits in
+
+1. **Mock data** — create a directory with one JSON file per sheet (row 1 = headers):
+
+    ```
+    mock-data/
+    ├── users.json      # [["id","name","email"],["1","Alice","alice@test.com"]]
+    └── products.json
+    ```
+
+2. **Run server code locally** — works seamlessly with `gas-react-core`:
+
+    ```ts
+    import { createSimulator } from 'lite-gas-simulator';
+    import { DataStore } from 'gas-react-core/server';
+
+    const sim = createSimulator({ dataDir: './mock-data' });
+    sim.installGlobals();
+
+    // Your server functions work locally now
+    const users = DataStore.getAll('users');
+    ```
+
+3. **Companion dev server** — when your webpack app runs with `GAS_LOCAL=true`, `executeFn` sends requests to `localhost:3001`. Start the simulator's dev server to handle them:
+
+    ```ts
+    sim.startDevServer({
+      port: 3001,
+      functions: {
+        getUsers: () => DataStore.getAll('users'),
+        createUser: (data) => DataStore.insert('users', data),
+      },
+    });
+    ```
+
+4. **Use in tests** — install/remove globals in `beforeEach`/`afterEach` for isolated unit tests:
+
+    ```ts
+    import { createSimulator } from 'lite-gas-simulator';
+    import { DataStore } from 'gas-react-core/server';
+
+    let sim;
+    beforeEach(() => {
+      sim = createSimulator({ dataDir: './test-data' });
+      sim.installGlobals();
+    });
+    afterEach(() => sim.removeGlobals());
+
+    it('returns users', () => {
+      expect(DataStore.getAll('users')).toHaveLength(2);
+    });
+    ```
+
+> **TL;DR** — `lite-gas-simulator` lets you run and test your `gas-react-core` server code entirely offline. Mutations auto-persist to your JSON files, and the built-in dev server bridges your webpack frontend during local development.
+
 ## License
 
 MIT
