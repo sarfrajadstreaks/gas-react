@@ -2,7 +2,41 @@
 
 **Webpack plugin that deploys React apps to Google Apps Script with automatic code splitting.**
 
-> The webpack equivalent of [`vite-plugin-gas-react`](https://www.npmjs.com/package/vite-plugin-gas-react). Write a standard React + webpack app. Build. Push to GAS.
+---
+
+## What's New in v0.2.0 🎉
+
+**Separate Chunk Files** - Chunks are now emitted as individual files in a `chunks/` directory instead of being bundled into a single `__gas_chunks__.js` file.
+
+✅ **Benefits:**
+- Better organization - each lazy-loaded component gets its own file
+- Cleaner Apps Script project structure
+- Easier debugging - inspect individual chunk files
+- Consistent with vite-plugin approach
+
+**Before (v0.1.x):**
+```
+dist/
+├── Code.js
+├── __gas_entry__.js
+├── __gas_chunks__.js (1MB - all chunks bundled)
+└── index.html
+```
+
+**After (v0.2.0):**
+```
+dist/
+├── Code.js
+├── __gas_entry__.js
+├── index.html
+└── chunks/
+    ├── __gas_chunk_164__.js
+    ├── __gas_chunk_276__.js
+    ├── __gas_chunk_489__.js
+    └── ... (one file per lazy-loaded component)
+```
+
+Chunks still load on-demand via `google.script.run.getPage()` - only the file organization has changed!
 
 ---
 

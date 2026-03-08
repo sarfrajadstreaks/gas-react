@@ -240,11 +240,10 @@ export class GASWebpackPlugin {
     const entryVar = `var __GAS_ENTRY_CODE__ = ${JSON.stringify(entryCode)};`;
     compilation.emitAsset('__gas_entry__.js', this.makeSource(entryVar));
 
-    // ── Step 3: Store async chunks as GAS string variables ─────────
+    // ── Step 3: Store async chunks as separate GAS files ───────────
     // Keep chunks in their ORIGINAL webpack JSONP format. When executed
     // in the browser, the JSONP callback fires and webpack's runtime
     // resolves the promise — no import/export rewriting needed.
-    const chunkVars: string[] = [];
     const knownChunks: Record<string, boolean> = {};
 
     for (const chunk of asyncChunks) {
@@ -257,15 +256,15 @@ export class GASWebpackPlugin {
         const baseName = file.replace(/\.js$/, '');
         const safeName = baseName.replaceAll(/\W/g, '_');
 
-        chunkVars.push(`var __GAS_CHUNK_${safeName}__ = ${JSON.stringify(code)};`);
+        // Emit each chunk as a separate file instead of bundling them
+        const chunkFileName = `chunks/__gas_chunk_${safeName}__.js`;
+        const chunkContent = `var __GAS_CHUNK_${safeName}__ = ${JSON.stringify(code)};`;
+        compilation.emitAsset(chunkFileName, this.makeSource(chunkContent));
+        
         knownChunks[baseName] = true;
 
         compilation.deleteAsset(file);
       }
-    }
-
-    if (chunkVars.length > 0) {
-      compilation.emitAsset('__gas_chunks__.js', this.makeSource(chunkVars.join('\n')));
     }
 
     // Remove original entry JS

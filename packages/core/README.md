@@ -288,6 +288,79 @@ export default function Users() {
 }
 ```
 
+## Deploying as a Library
+
+You can publish your GAS project as a **Library** so multiple consumers (each with their own spreadsheet) share the same codebase.
+
+### Architecture
+
+```
+┌──────────────────────────────┐       ┌──────────────────────────────────┐
+│  Library Project (your app)  │       │  Consumer Apps Script Project    │
+│                              │       │  (container-bound to their sheet)│
+│  • Server functions          │◄──────│                                 │
+│  • Client HTML/JS bundle     │       │  • doGet() → MyLib.doGet()      │
+│  • DataStore reads the       │       │  • runLibraryFunction() proxy   │
+│    ACTIVE spreadsheet        │       │                                 │
+└──────────────────────────────┘       └──────────────────────────────────┘
+```
+
+`DataStore` uses `SpreadsheetApp.getActiveSpreadsheet()`. When a consumer's container-bound script calls library functions, the active spreadsheet is **their** spreadsheet — so all CRUD operates on the consumer's data.
+
+### 1. Publish Your Project as a Library
+
+1. Build & push your project to Apps Script (`clasp push`)
+2. Open the Apps Script editor → **Deploy** → **New deployment** → type: **Library**
+3. Note the **Script ID** and **version number**
+
+### 2. Consumer Setup
+
+Create a Google Sheet for the consumer. Open **Extensions → Apps Script** and replace `Code.gs` with:
+
+```js
+/** Serve the web app from the library */
+function doGet(e) {
+  return MyLib.doGet(e);
+}
+
+/**
+ * Proxy for library mode.
+ * gas-react-core's executeFn (in library mode) routes all calls here.
+ */
+function runLibraryFunction(funcName, args) {
+  if (typeof MyLib[funcName] !== 'function') {
+    throw new Error('Unknown library function: ' + funcName);
+  }
+  return MyLib[funcName].apply(null, args || []);
+}
+
+// If your build plugin (webpack-plugin-gas-react / vite-plugin-gas-react)
+// uses code splitting, you may also need to proxy its generated functions
+// (e.g. getEntryCode, getPage). See the build plugin docs for details.
+```
+
+Then add the library: **Libraries (+)** → paste the Script ID → select version → identifier: `MyLib`.
+
+### 3. Client Configuration
+
+In your React client entry, enable library mode:
+
+```ts
+import { configureExecution } from 'gas-react-core/client';
+
+configureExecution({ mode: 'library' });
+```
+
+All `executeFn` calls will now route through `runLibraryFunction` in the consumer's script.
+
+### 4. Deploy the Consumer
+
+**Deploy → New deployment → Web app** → Execute as: Me → Who has access: Anyone → **Deploy**.
+
+Users open the consumer's web app URL. The library serves the UI, and all data operations target the consumer's spreadsheet.
+
+---
+
 ## License
 
 MIT
