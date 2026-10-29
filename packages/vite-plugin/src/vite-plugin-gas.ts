@@ -167,11 +167,11 @@ export function gasPlugin(options: GASPluginOptions = {}): VitePlugin {
           cleanedEntry = rewriteExportsToNamespace(cleanedEntry, 'window.__gasEntry__');
           cleanedEntry = `window.__gasEntry__={};\nvar __VITE_PRELOAD__=void 0;\n` + cleanedEntry;
 
-          bundle['__gas_entry__.js'] = {
-            type: 'asset',
-            fileName: '__gas_entry__.js',
-            source: `var __GAS_ENTRY_CODE__ = ${JSON.stringify(cleanedEntry)};`,
-          };
+          this.emitFile({
+          type: "asset",
+          fileName: "__gas_entry__.js",
+          source: `var __GAS_ENTRY_CODE__ = ${JSON.stringify(cleanedEntry)};`,
+          });
 
           delete bundle[entryFileName];
 
@@ -227,11 +227,11 @@ export function gasPlugin(options: GASPluginOptions = {}): VitePlugin {
           }
 
           if (chunkVars.length > 0) {
-            bundle['__gas_chunks__.js'] = {
-              type: 'asset',
-              fileName: '__gas_chunks__.js',
-              source: chunkVars.join('\n'),
-            };
+            this.emitFile({
+              type: "asset",
+              fileName: "__gas_chunks__.js",
+              source: chunkVars.join("\n")
+              });
           }
 
           const depsJson = JSON.stringify(depsMap);
@@ -279,26 +279,26 @@ function getEntryCode() {
   return __GAS_ENTRY_CODE__;
 }
 `;
-          bundle['Code.js'] = {
-            type: 'asset',
-            fileName: 'Code.js',
-            source: codeJs,
-          };
+          this.emitFile({
+            type: "asset",
+            fileName: "Code.js",
+            source: codeJs
+          });
 
-          bundle['appsscript.json'] = {
-            type: 'asset',
-            fileName: 'appsscript.json',
+          this.emitFile({
+            type: "asset",
+            fileName: "appsscript.json",
             source: JSON.stringify({
-              timeZone: 'Asia/Kolkata',
+              timeZone: "Asia/Kolkata",
               dependencies: {},
               webapp: {
-                access: 'ANYONE_ANONYMOUS',
-                executeAs: 'USER_DEPLOYING',
-              },
-              exceptionLogging: 'STACKDRIVER',
-              runtimeVersion: 'V8',
-            }, null, 2),
-          };
+                access: "ANYONE_ANONYMOUS",
+                executeAs: "USER_DEPLOYING"
+                },
+              exceptionLogging: "STACKDRIVER",
+              runtimeVersion: "V8"
+            }, null, 2)
+          });
         }
       }
     },
